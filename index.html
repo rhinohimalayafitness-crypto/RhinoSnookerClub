@@ -327,13 +327,6 @@
     var DEFAULT_TABLE_NAMES = {"1":"Table 1","2":"Table 2"};
     var DEFAULT_PASSWORD = "snooker123";
     var DEFAULT_MAX_PAUSE_MINUTES = 2;
-    var DEFAULT_HISTORY = [
-      { id:"seed-1", table:"1", name:"Rahul Sharma", phone:"9876543210", startTime: Date.now()-1000*60*95, endTime: Date.now()-1000*60*50, minutes:45, rate:4, amount:180 },
-      { id:"seed-2", table:"2", name:"Priya Verma", phone:"9812345678", startTime: Date.now()-1000*60*190, endTime: Date.now()-1000*60*130, minutes:60, rate:5, amount:300 },
-      { id:"seed-3", table:"1", name:"Aman Gupta", phone:"9898989898", startTime: Date.now()-1000*60*300, endTime: Date.now()-1000*60*250, minutes:50, rate:4, amount:200 },
-      { id:"seed-4", table:"2", name:"Simran Kaur", phone:"9765432109", startTime: Date.now()-1000*60*400, endTime: Date.now()-1000*60*340, minutes:60, rate:5, amount:300 },
-      { id:"seed-5", table:"1", name:"Vikram Singh", phone:"9911223344", startTime: Date.now()-1000*60*500, endTime: Date.now()-1000*60*465, minutes:35, rate:4, amount:140 }
-    ];
 
     var state = {
       rates: DEFAULT_RATES,
@@ -424,7 +417,7 @@
         state.allowCustomerPause = (cfgData && typeof cfgData.allowCustomerPause !== 'undefined') ? cfgData.allowCustomerPause : true;
         state.maxPauseMinutes = (cfgData && cfgData.maxPauseMinutes) || DEFAULT_MAX_PAUSE_MINUTES;
         state.sessions = (sessData && sessData.value) || {"1":null,"2":null};
-        state.history = (histData && histData.value) || DEFAULT_HISTORY;
+        state.history = (histData && histData.value) || [];
         state.loaded = true;
         console.log("✅ Firebase connected successfully");
       } catch(err){

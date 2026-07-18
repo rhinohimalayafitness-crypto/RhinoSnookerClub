@@ -286,6 +286,10 @@
     <h4 class="subhead">Recent games</h4>
     <div id="historyList"></div>
 
+    <h4 class="subhead">Kick Out</h4>
+    <p class="section-sub">Forcefully end a table's session right now. It'll be billed for time played and added to Recent games.</p>
+    <div id="kickOutList"></div>
+
     <h4 class="subhead">Owner password</h4>
     <p class="section-sub">Change the password used to open this dashboard.</p>
     <div class="pw-row">
@@ -738,6 +742,7 @@
 
       renderActiveList();
       renderHistoryList();
+      renderKickOutList();
 
       var qg = $("qrGrid");
       qg.innerHTML = "";
@@ -817,10 +822,43 @@
       });
     }
 
+    function renderKickOutList(){
+      var host = $("kickOutList");
+      if(!host) return;
+      host.innerHTML = "";
+      var anyActive = false;
+      TABLES.forEach(function(t){
+        var sess = state.sessions[t];
+        if(!sess) return;
+        anyActive = true;
+        var displayName = state.tableNames[t] || ("Table " + t);
+        var mins = billedMinutes(sess);
+        var cost = mins * state.rates[t];
+        var row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML =
+          '<div>' +
+            '<div class="who">' + displayName + (sess.paused ? ' <span class="status-pill paused" style="margin-left:6px;">Paused</span>' : '') + '</div>' +
+            '<div class="meta">' + sess.name + ' · ' + sess.phone + ' · ' + fmtClock(minutesElapsed(sess)*60) + ' · ' + fmtMoney(cost) + '</div>' +
+          '</div>' +
+          '<button class="btn btn-red btn-sm" data-t="' + t + '">Kick Out</button>';
+        host.appendChild(row);
+      });
+      if(!anyActive){
+        host.innerHTML = '<div class="empty-note">No tables occupied right now.</div>';
+      }
+      host.querySelectorAll("button").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          killSession(btn.getAttribute("data-t"));
+        });
+      });
+    }
+
     function startOwnerPoll(){
       stopOwnerPoll();
       pollHandle = setInterval(function(){
         renderActiveList();
+        renderKickOutList();
       }, 1000);
     }
 

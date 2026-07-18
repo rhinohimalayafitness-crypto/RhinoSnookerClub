@@ -261,6 +261,13 @@
         <span class="slider"></span>
       </label>
     </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--felt-light);">
+      <span>Allow customers to pause games themselves</span>
+      <label class="switch">
+        <input type="checkbox" id="allowPauseToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
     <div style="padding:10px 0;">
       <span>Max pause duration before "Kill Session" appears (minutes)</span>
       <div class="pw-row" style="margin-top:8px;">
@@ -330,6 +337,7 @@
       ownerPassword: DEFAULT_PASSWORD,
       upiId: "",
       allowCustomerEnd: true,
+      allowCustomerPause: true,
       maxPauseMinutes: DEFAULT_MAX_PAUSE_MINUTES,
       sessions: {"1":null,"2":null},
       history: [],
@@ -409,6 +417,7 @@
         state.ownerPassword = (cfgData && cfgData.ownerPassword) || DEFAULT_PASSWORD;
         state.upiId = (cfgData && cfgData.upiId) || "";
         state.allowCustomerEnd = (cfgData && typeof cfgData.allowCustomerEnd !== 'undefined') ? cfgData.allowCustomerEnd : true;
+        state.allowCustomerPause = (cfgData && typeof cfgData.allowCustomerPause !== 'undefined') ? cfgData.allowCustomerPause : true;
         state.maxPauseMinutes = (cfgData && cfgData.maxPauseMinutes) || DEFAULT_MAX_PAUSE_MINUTES;
         state.sessions = (sessData && sessData.value) || {"1":null,"2":null};
         state.history = (histData && histData.value) || DEFAULT_HISTORY;
@@ -441,6 +450,7 @@
           ownerPassword: state.ownerPassword,
           upiId: state.upiId,
           allowCustomerEnd: state.allowCustomerEnd,
+          allowCustomerPause: state.allowCustomerPause,
           maxPauseMinutes: state.maxPauseMinutes
         });
       } catch(err){ console.error(err); toast("Could not save."); }
@@ -533,7 +543,7 @@
       if(tickHandle) clearInterval(tickHandle);
       tickHandle = setInterval(tickActive, 1000);
       $("endGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
-      $("pauseGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
+      $("pauseGameBtn").style.display = state.allowCustomerPause ? "block" : "none";
       updatePauseUI();
     }
 
@@ -548,7 +558,7 @@
       $("activeCost").textContent = fmtMoney(cost);
       $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min" + (sess.paused ? " · PAUSED" : "");
       $("endGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
-      $("pauseGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
+      $("pauseGameBtn").style.display = state.allowCustomerPause ? "block" : "none";
     }
 
     function updatePauseUI(){
@@ -720,6 +730,9 @@
       var allowToggle = $("allowEndToggle");
       if(allowToggle) allowToggle.checked = !!state.allowCustomerEnd;
 
+      var allowPauseToggle = $("allowPauseToggle");
+      if(allowPauseToggle) allowPauseToggle.checked = !!state.allowCustomerPause;
+
       var maxPauseInput = $("maxPauseInput");
       if(maxPauseInput) maxPauseInput.value = state.maxPauseMinutes || DEFAULT_MAX_PAUSE_MINUTES;
 
@@ -877,6 +890,12 @@
     $("allowEndToggle").addEventListener("change", async function(){
       state.allowCustomerEnd = this.checked;
       await saveConfig();
+      toast("Setting updated.");
+    });
+    $("allowPauseToggle").addEventListener("change", async function(){
+      state.allowCustomerPause = this.checked;
+      await saveConfig();
+      if(currentTable) tickActive();
       toast("Setting updated.");
     });
     $("saveMaxPauseBtn").addEventListener("click", async function(){

@@ -672,7 +672,7 @@
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
       $("activeTitle").textContent = displayName;
-      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b> · " + sess.phone + " · started " + fmtTime(sess.startTime);
+      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b><br><span>Started " + fmtTime(sess.startTime) + "</span>";
       show("view-active");
       tickActive();
       if(tickHandle) clearInterval(tickHandle);

@@ -282,6 +282,15 @@
     </div>
     <div class="err hidden" id="upiUnsetNote" style="margin-top:14px;">Owner hasn't set a UPI ID yet — ask them to add one under Owner &gt; Payments.</div>
     <button class="btn btn-outline btn-block hidden" id="payUpiBtn" style="margin-top:14px;">Pay via UPI (GPay / PhonePe / Paytm)</button>
+    <div class="hidden" id="upiIosOptions" style="margin-top:14px;">
+      <p class="hint-note" style="margin:0 0 10px;">iPhone can't show an app picker for UPI links — tap your app directly:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-outline btn-block" id="payGpayBtn">Pay with Google Pay</button>
+        <button class="btn btn-outline btn-block" id="payPhonepeBtn">Pay with PhonePe</button>
+        <button class="btn btn-outline btn-block" id="payPaytmBtn">Pay with Paytm</button>
+        <button class="btn btn-outline btn-block" id="payOtherUpiBtn">Other UPI app (BHIM etc.)</button>
+      </div>
+    </div>
     <button class="btn btn-brass btn-block" id="receiptDoneBtn" style="margin-top:12px;">New game</button>
   </div>
 
@@ -421,7 +430,7 @@
     var TABLES = ["1","2"];
     var DEFAULT_RATES = {"1":4,"2":5};
     var DEFAULT_TABLE_NAMES = {"1":"Table 1","2":"Table 2"};
-    var DEFAULT_PASSWORD = "admin";
+    var DEFAULT_PASSWORD = "snooker123";
     var DEFAULT_MAX_PAUSE_MINUTES = 2;
     var DEFAULT_ADMIN_USERNAME = "admin";
 
@@ -753,7 +762,7 @@
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
       $("activeTitle").textContent = displayName;
-      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b> · " + sess.phone + " · started " + fmtTime(sess.startTime);
+      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b> · started " + fmtTime(sess.startTime);
       show("view-active");
       tickActive();
       if(tickHandle) clearInterval(tickHandle);
@@ -865,7 +874,7 @@
       var amount = mins * rate;
       var record = {
         id: String(endTime) + "-" + t,
-        table: t, name: sess.name, phone: sess.phone,
+        table: t, name: sess.name,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
         pausedMs: totalPausedMs(sess, endTime),
@@ -898,7 +907,7 @@
       var amount = mins * rate;
       var record = {
         id: String(endTime) + "-" + t,
-        table: t, name: sess.name, phone: sess.phone,
+        table: t, name: sess.name,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
         pausedMs: totalPausedMs(sess, endTime),
@@ -913,7 +922,14 @@
       showReceipt(record);
     }
 
-    function buildUpiLink(record){
+    function isIOS(){
+      var ua = navigator.userAgent || navigator.vendor || "";
+      // iPhone/iPod report normally; iPadOS 13+ reports as "Macintosh" but exposes touch points.
+      return /iPad|iPhone|iPod/.test(ua) ||
+        (ua.indexOf("Macintosh") !== -1 && navigator.maxTouchPoints > 1);
+    }
+
+    function buildUpiLink(record, app){
       var amount = Math.round(record.amount);
       var note = "Table " + record.table + " snooker - " + record.name;
       var params = "pa=" + encodeURIComponent(state.upiId) +
@@ -921,6 +937,15 @@
         "&am=" + amount +
         "&cu=INR" +
         "&tn=" + encodeURIComponent(note);
+      // Android resolves the generic upi:// scheme with a proper app chooser.
+      // iOS has no chooser for custom schemes, and if more than one installed
+      // app claims upi://, iOS just silently launches one of them (often
+      // WhatsApp) with no way for us to control which. Each major UPI app
+      // instead registers its own unique scheme on iOS, so on iOS we target
+      // the app the person actually tapped.
+      if(app === "gpay") return "gpay://upi/pay?" + params;
+      if(app === "phonepe") return "phonepe://pay?" + params;
+      if(app === "paytm") return "paytmmp://pay?" + params;
       return "upi://pay?" + params;
     }
 
@@ -935,14 +960,16 @@
       $("rcRate").textContent = fmtMoney(r.rate) + "/min";
       $("rcTotal").textContent = fmtMoney(r.amount);
       var hasUpi = !!(state.upiId && state.upiId.trim());
-      $("payUpiBtn").classList.toggle("hidden", !hasUpi);
+      var onIOS = isIOS();
+      $("payUpiBtn").classList.toggle("hidden", !hasUpi || onIOS);
+      $("upiIosOptions").classList.toggle("hidden", !hasUpi || !onIOS);
       $("upiUnsetNote").classList.toggle("hidden", hasUpi);
       show("view-receipt");
     }
 
-    function payViaUpi(){
+    function payViaUpi(app){
       if(!currentReceipt || !state.upiId) return;
-      var link = buildUpiLink(currentReceipt);
+      var link = buildUpiLink(currentReceipt, app);
       var a = document.createElement("a");
       a.href = link;
       a.style.display = "none";
@@ -1235,7 +1262,7 @@
       $("loginUsername").value = "";
       $("loginPassword").value = "";
       $("loginErr").classList.add("hidden");
-    
+      
       show("view-login");
     }
 
@@ -1267,7 +1294,11 @@
     $("entryStartBtn").addEventListener("click", startGame);
     $("endGameBtn").addEventListener("click", endGame);
     $("pauseGameBtn").addEventListener("click", togglePause);
-    $("payUpiBtn").addEventListener("click", payViaUpi);
+    $("payUpiBtn").addEventListener("click", function(){ payViaUpi(); });
+    $("payGpayBtn").addEventListener("click", function(){ payViaUpi("gpay"); });
+    $("payPhonepeBtn").addEventListener("click", function(){ payViaUpi("phonepe"); });
+    $("payPaytmBtn").addEventListener("click", function(){ payViaUpi("paytm"); });
+    $("payOtherUpiBtn").addEventListener("click", function(){ payViaUpi(); });
     $("saveRatesBtn").addEventListener("click", saveRates);
     $("saveTableNamesBtn").addEventListener("click", saveTableNames);
     $("allowEndToggle").addEventListener("change", async function(){

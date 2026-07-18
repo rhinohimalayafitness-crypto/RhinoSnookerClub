@@ -236,7 +236,16 @@
   <div class="screen" id="view-home">
     <h2 class="section-title">Pick your table</h2>
     <p class="section-sub">Scan the QR code on the table, or tap below to start.</p>
+    <button class="btn btn-outline btn-block" id="openBoardBtn" style="margin-bottom:16px;">📊 Live Dashboard</button>
     <div class="table-grid" id="homeTableGrid"></div>
+  </div>
+
+  <!-- LIVE BOARD -->
+  <div class="screen hidden" id="view-board">
+    <div class="back-row"><button class="navbtn" id="boardBackBtn">◂ Tables</button></div>
+    <h2 class="section-title">Live Dashboard</h2>
+    <p class="section-sub" id="boardSummary"></p>
+    <div id="boardList"></div>
   </div>
 
   <!-- ENTRY -->
@@ -453,13 +462,58 @@
     var currentTable = null;
     var tickHandle = null;
     var pollHandle = null;
+    var boardTickHandle = null;
     var isOwnerAuthed = false;
     var currentUser = null;
+    var notifiedHours = {};
+    var audioCtx = null;
+
+    function unlockAudio(){
+      try {
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === "suspended") audioCtx.resume();
+      } catch(e){}
+    }
+    document.addEventListener("click", unlockAudio, { once: true });
+
+    function playChime(){
+      try {
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === "suspended") audioCtx.resume();
+        var now = audioCtx.currentTime;
+        [0, 0.22].forEach(function(offset, i){
+          var osc = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = i === 0 ? 880 : 1175;
+          gain.gain.setValueAtTime(0.0001, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.28, now + offset + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.4);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.45);
+        });
+      } catch(e){}
+    }
+
+    function checkHourlyMilestone(t, sess){
+      if(!sess) return;
+      var mins = minutesElapsed(sess);
+      var hours = Math.floor(mins / 60);
+      if(hours > 0 && (notifiedHours[t] || 0) < hours){
+        notifiedHours[t] = hours;
+        playChime();
+        var displayName = state.tableNames[t] || ("Table " + t);
+        toast("⏰ " + displayName + " — " + hours + " hour" + (hours > 1 ? "s" : "") + " played (" + sess.name + ")");
+      }
+    }
 
     function $(id){ return document.getElementById(id); }
 
     function show(id){
-      ["view-home","view-entry","view-active","view-receipt","view-login","view-owner"].forEach(function(v){
+      if(id !== "view-board" && boardTickHandle){ clearInterval(boardTickHandle); boardTickHandle = null; }
+      ["view-home","view-entry","view-active","view-receipt","view-login","view-owner","view-board"].forEach(function(v){
         $(v).classList.toggle("hidden", v !== id);
       });
     }
@@ -712,6 +766,56 @@
       });
     }
 
+    function openBoard(){
+      show("view-board");
+      renderBoard();
+      if(boardTickHandle) clearInterval(boardTickHandle);
+      boardTickHandle = setInterval(renderBoard, 1000);
+    }
+
+    function closeBoard(){
+      if(boardTickHandle){ clearInterval(boardTickHandle); boardTickHandle = null; }
+      show("view-home");
+      renderHome();
+    }
+
+    function renderBoard(){
+      var host = $("boardList");
+      if(!host) return;
+      var occupied = 0;
+      host.innerHTML = "";
+      TABLES.forEach(function(t){
+        var sess = state.sessions[t];
+        var displayName = state.tableNames[t] || ("Table " + t);
+        var rate = state.rates[t];
+        var row = document.createElement("div");
+        row.className = "list-row";
+        if(sess){
+          occupied++;
+          var mins = billedMinutes(sess);
+          var cost = mins * rate;
+          var pausedSecs = sess.paused ? (totalPausedMs(sess) / 1000) : 0;
+          row.innerHTML =
+            '<div>' +
+              '<div class="who">' + displayName + (sess.paused ? ' <span class="status-pill paused" style="margin-left:6px;">Paused</span>' : ' <span class="status-pill busy" style="margin-left:6px;">In play</span>') + '</div>' +
+              '<div class="meta">' + sess.name + ' · started ' + fmtTime(sess.startTime) + (sess.paused ? (' · ⏸ paused ' + fmtClock(pausedSecs)) : '') + '</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div class="who" style="font-family:var(--font-mono);">' + fmtClock(minutesElapsed(sess) * 60) + '</div>' +
+              '<div class="meta">' + fmtMoney(cost) + '</div>' +
+            '</div>';
+        } else {
+          row.innerHTML =
+            '<div>' +
+              '<div class="who">' + displayName + ' <span class="status-pill free" style="margin-left:6px;">Free</span></div>' +
+              '<div class="meta">' + fmtMoney(rate) + ' / min</div>' +
+            '</div>';
+        }
+        host.appendChild(row);
+      });
+      $("boardSummary").textContent = occupied + " of " + TABLES.length + " table" + (TABLES.length > 1 ? "s" : "") + " occupied right now.";
+    }
+
     function openEntry(t){
       currentTable = t;
       var displayName = state.tableNames[t] || ("Table " + t);
@@ -748,6 +852,7 @@
           transaction.set(db.collection("club").doc("sessions"), { value: currentSessions });
           state.sessions = currentSessions;
           try { localStorage.setItem("snooker_sid_" + currentTable, sessionId); } catch(e){}
+          delete notifiedHours[currentTable];
         });
         openActive(currentTable);
       } catch(err){
@@ -762,7 +867,7 @@
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
       $("activeTitle").textContent = displayName;
-      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b> · started " + fmtTime(sess.startTime);
+      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b> · " + sess.phone + " · started " + fmtTime(sess.startTime);
       show("view-active");
       tickActive();
       if(tickHandle) clearInterval(tickHandle);
@@ -798,6 +903,7 @@
       $("endGameBtn").style.display = (owns && state.allowCustomerEnd) ? "block" : "none";
       $("pauseGameBtn").style.display = (owns && state.allowCustomerPause) ? "block" : "none";
       $("activeViewerNote").classList.toggle("hidden", owns);
+      checkHourlyMilestone(currentTable, sess);
     }
 
     function updatePauseUI(){
@@ -874,7 +980,7 @@
       var amount = mins * rate;
       var record = {
         id: String(endTime) + "-" + t,
-        table: t, name: sess.name,
+        table: t, name: sess.name, phone: sess.phone,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
         pausedMs: totalPausedMs(sess, endTime),
@@ -885,6 +991,7 @@
       state.sessions[t] = null;
       if(currentTable === t && tickHandle){ clearInterval(tickHandle); tickHandle = null; }
       try { localStorage.removeItem("snooker_sid_" + t); } catch(e){}
+      delete notifiedHours[t];
       await saveSessions();
       await saveHistory();
       await logChange("Force-ended session", displayName + " · " + sess.name + " · " + fmtMoney(amount));
@@ -907,7 +1014,7 @@
       var amount = mins * rate;
       var record = {
         id: String(endTime) + "-" + t,
-        table: t, name: sess.name,
+        table: t, name: sess.name, phone: sess.phone,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
         pausedMs: totalPausedMs(sess, endTime),
@@ -917,6 +1024,7 @@
       state.sessions[t] = null;
       if(tickHandle){ clearInterval(tickHandle); tickHandle = null; }
       try { localStorage.removeItem("snooker_sid_" + t); } catch(e){}
+      delete notifiedHours[t];
       await saveSessions();
       await saveHistory();
       showReceipt(record);
@@ -1067,6 +1175,7 @@
         var sess = state.sessions[t];
         if(!sess) return;
         anyActive = true;
+        checkHourlyMilestone(t, sess);
         var displayName = state.tableNames[t] || ("Table " + t);
         var mins = billedMinutes(sess);
         var cost = mins * state.rates[t];
@@ -1262,7 +1371,7 @@
       $("loginUsername").value = "";
       $("loginPassword").value = "";
       $("loginErr").classList.add("hidden");
-      
+      $("loginFirstRunHint").textContent = "Default admin — username: admin · password: snooker123";
       show("view-login");
     }
 
@@ -1332,6 +1441,9 @@
       show("view-home");
       renderHome();
     });
+
+    $("openBoardBtn").addEventListener("click", openBoard);
+    $("boardBackBtn").addEventListener("click", closeBoard);
 
     $("activeBackBtn").addEventListener("click", function(){
       if(tickHandle){ clearInterval(tickHandle); tickHandle = null; }

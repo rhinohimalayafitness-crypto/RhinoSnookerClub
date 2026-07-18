@@ -152,6 +152,7 @@
   .hint-note{font-size:11px;color:var(--chalk-dim);text-align:center;margin-top:14px;}
   .status-pill.paused{background:rgba(216,210,191,0.18);color:var(--chalk-dim);}
   .btn-sm{padding:6px 10px;font-size:12px;white-space:nowrap;}
+  .role-badge{font-family:var(--font-mono);font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(201,162,75,0.18);color:var(--brass);margin-left:6px;text-transform:uppercase;}
 </style>
 </head>
 <body>
@@ -219,9 +220,11 @@
     <div class="back-row"><button class="navbtn" id="loginBackBtn">◂ Back</button></div>
     <div class="lock-badge">🔒</div>
     <h2 class="section-title">Owner login</h2>
-    <p class="section-sub">Enter the owner password to open the dashboard.</p>
+    <p class="section-sub">Enter your username and password to open the dashboard.</p>
+    <label class="field-label">Username</label>
+    <input type="text" id="loginUsername" placeholder="admin" autocomplete="off">
     <label class="field-label">Password</label>
-    <input type="text" id="loginPassword" placeholder="Owner password" autocomplete="off">
+    <input type="text" id="loginPassword" placeholder="Password" autocomplete="off">
     <div class="err hidden" id="loginErr"></div>
     <button class="btn btn-brass btn-block" id="loginSubmitBtn" style="margin-top:20px;">Log in</button>
     <p class="hint-note" id="loginFirstRunHint"></p>
@@ -235,6 +238,7 @@
     </div>
     <h2 class="section-title">Owner dashboard</h2>
     <p class="section-sub">Live sessions, rates, history and revenue.</p>
+    <p class="section-sub" id="loggedInAsLine" style="margin-top:-14px;"></p>
 
     <div class="stat-grid">
       <div class="stat-card"><div class="lbl">Today's revenue</div><div class="val" id="statToday">₹0</div></div>
@@ -290,11 +294,30 @@
     <p class="section-sub">Forcefully end a table's session right now. It'll be billed for time played and added to Recent games.</p>
     <div id="kickOutList"></div>
 
-    <h4 class="subhead">Owner password</h4>
-    <p class="section-sub">Change the password used to open this dashboard.</p>
+    <h4 class="subhead">Your password</h4>
+    <p class="section-sub">Change the password for your own account (<span id="myUsernameLabel"></span>).</p>
     <div class="pw-row">
       <input type="text" id="newPassword" placeholder="New password" autocomplete="off">
       <button class="btn btn-outline" id="changePasswordBtn">Update</button>
+    </div>
+
+    <div id="accountsSection">
+      <h4 class="subhead">Accounts</h4>
+      <p class="section-sub">Create supervisor accounts. Supervisors can manage the dashboard but can't create accounts or see the change log below.</p>
+      <div id="accountsListHost"></div>
+      <div class="pw-row" style="margin-top:10px;">
+        <input type="text" id="newSupUsername" placeholder="New username" autocomplete="off">
+      </div>
+      <div class="pw-row" style="margin-top:8px;margin-bottom:20px;">
+        <input type="text" id="newSupPassword" placeholder="New password" autocomplete="off">
+        <button class="btn btn-outline" id="createSupervisorBtn">Create supervisor</button>
+      </div>
+    </div>
+
+    <div id="recentChangesSection">
+      <h4 class="subhead">Recent changes</h4>
+      <p class="section-sub">Every setting change or forced session end — who did it and when.</p>
+      <div id="changesList"></div>
     </div>
 
     <h4 class="subhead">Table QR codes</h4>
@@ -327,6 +350,7 @@
     var DEFAULT_TABLE_NAMES = {"1":"Table 1","2":"Table 2"};
     var DEFAULT_PASSWORD = "snooker123";
     var DEFAULT_MAX_PAUSE_MINUTES = 2;
+    var DEFAULT_ADMIN_USERNAME = "admin";
 
     var state = {
       rates: DEFAULT_RATES,
@@ -338,6 +362,8 @@
       maxPauseMinutes: DEFAULT_MAX_PAUSE_MINUTES,
       sessions: {"1":null,"2":null},
       history: [],
+      accounts: {},
+      changes: [],
       loaded: false
     };
 
@@ -346,6 +372,7 @@
     var tickHandle = null;
     var pollHandle = null;
     var isOwnerAuthed = false;
+    var currentUser = null;
 
     function $(id){ return document.getElementById(id); }
 
@@ -404,10 +431,14 @@
         var configSnap = await db.collection("club").doc("config").get();
         var sessionsSnap = await db.collection("club").doc("sessions").get();
         var historySnap = await db.collection("club").doc("history").get();
+        var accountsSnap = await db.collection("club").doc("accounts").get();
+        var changesSnap = await db.collection("club").doc("changes").get();
 
         var cfgData = configSnap.exists ? configSnap.data() : null;
         var sessData = sessionsSnap.exists ? sessionsSnap.data() : null;
         var histData = historySnap.exists ? historySnap.data() : null;
+        var acctData = accountsSnap.exists ? accountsSnap.data() : null;
+        var chgData = changesSnap.exists ? changesSnap.data() : null;
 
         state.rates = (cfgData && cfgData.rates) || DEFAULT_RATES;
         state.tableNames = (cfgData && cfgData.tableNames) || DEFAULT_TABLE_NAMES;
@@ -418,6 +449,23 @@
         state.maxPauseMinutes = (cfgData && cfgData.maxPauseMinutes) || DEFAULT_MAX_PAUSE_MINUTES;
         state.sessions = (sessData && sessData.value) || {"1":null,"2":null};
         state.history = (histData && histData.value) || [];
+        state.changes = (chgData && chgData.value) || [];
+
+        if(acctData && acctData.value && Object.keys(acctData.value).length){
+          state.accounts = acctData.value;
+        } else {
+          // First run (or a pre-accounts install) — seed one default admin.
+          // If an owner password was already customized under the old model, carry it over.
+          state.accounts = {};
+          state.accounts[DEFAULT_ADMIN_USERNAME] = {
+            password: state.ownerPassword || DEFAULT_PASSWORD,
+            role: "admin",
+            createdAt: Date.now(),
+            createdBy: null
+          };
+          await saveAccounts();
+        }
+
         state.loaded = true;
         console.log("✅ Firebase connected successfully");
       } catch(err){
@@ -437,6 +485,32 @@
       try {
         await db.collection("club").doc("history").set({ value: state.history });
       } catch(err){ console.error(err); toast("Could not save history."); }
+    }
+
+    async function saveAccounts(){
+      try {
+        await db.collection("club").doc("accounts").set({ value: state.accounts });
+      } catch(err){ console.error(err); toast("Could not save accounts."); }
+    }
+
+    async function saveChanges(){
+      try {
+        await db.collection("club").doc("changes").set({ value: state.changes });
+      } catch(err){ console.error(err); toast("Could not save change log."); }
+    }
+
+    async function logChange(action, details){
+      var entry = {
+        user: currentUser ? currentUser.username : "unknown",
+        role: currentUser ? currentUser.role : "unknown",
+        action: action,
+        details: details || "",
+        time: Date.now()
+      };
+      state.changes.unshift(entry);
+      if(state.changes.length > 200) state.changes.length = 200;
+      await saveChanges();
+      renderChangesList();
     }
 
     async function saveConfig(){
@@ -702,6 +776,20 @@
       $("statToday").textContent = fmtMoney(revenue);
       $("statCount").textContent = todays.length;
 
+      var isAdmin = !!(currentUser && currentUser.role === "admin");
+      var loggedLine = $("loggedInAsLine");
+      if(loggedLine) loggedLine.textContent = currentUser ? ("Logged in as " + currentUser.username + " (" + currentUser.role + ")") : "";
+      var myUsernameLabel = $("myUsernameLabel");
+      if(myUsernameLabel) myUsernameLabel.textContent = currentUser ? currentUser.username : "";
+      var acctSection = $("accountsSection");
+      if(acctSection) acctSection.classList.toggle("hidden", !isAdmin);
+      var changesSection = $("recentChangesSection");
+      if(changesSection) changesSection.classList.toggle("hidden", !isAdmin);
+      if(isAdmin){
+        renderAccountsList();
+        renderChangesList();
+      }
+
       var re = $("rateEditor");
       $("upiIdInput").value = state.upiId || "";
       re.innerHTML = "";
@@ -885,22 +973,26 @@
     }
 
     function openLogin(){
+      $("loginUsername").value = "";
       $("loginPassword").value = "";
       $("loginErr").classList.add("hidden");
-      $("loginFirstRunHint").textContent = "Default password: snooker123";
+      $("loginFirstRunHint").textContent = "Default admin — username: admin · password: snooker123";
       show("view-login");
     }
 
     function attemptLogin(){
+      var username = $("loginUsername").value.trim();
       var entered = $("loginPassword").value.trim();
-      if(entered === state.ownerPassword || entered === "snooker123"){
+      var acct = state.accounts[username];
+      if(acct && acct.password === entered){
         isOwnerAuthed = true;
+        currentUser = { username: username, role: acct.role };
         renderOwner();
         show("view-owner");
         startOwnerPoll();
         toast("Login successful!");
       } else {
-        $("loginErr").textContent = "Wrong password. Try snooker123";
+        $("loginErr").textContent = "Wrong username or password.";
         $("loginErr").classList.remove("hidden");
       }
     }
@@ -912,6 +1004,7 @@
     });
     $("loginSubmitBtn").addEventListener("click", attemptLogin);
     $("loginPassword").addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
+    $("loginUsername").addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
     $("entryStartBtn").addEventListener("click", startGame);
     $("endGameBtn").addEventListener("click", endGame);
     $("pauseGameBtn").addEventListener("click", togglePause);
@@ -966,6 +1059,7 @@
     $("logoutBtn").addEventListener("click", function(){
       stopOwnerPoll();
       isOwnerAuthed = false;
+      currentUser = null;
       show("view-home");
       renderHome();
       toast("Logged out.");

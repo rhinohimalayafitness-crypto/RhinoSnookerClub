@@ -317,6 +317,7 @@
 
     <h4 class="subhead">Payments</h4>
     <p class="section-sub">UPI ID customers pay to when they tap "Pay via UPI" on their receipt.</p>
+    <p class="hint-note admin-only-note hidden" id="paymentsAdminNote" style="margin:0 0 10px;text-align:left;">🔒 Only the admin can change payment settings.</p>
     <div class="pw-row">
       <input type="text" id="upiIdInput" placeholder="yourclub@okicici">
       <button class="btn btn-outline" id="saveUpiBtn">Save</button>
@@ -324,6 +325,7 @@
 
     <h4 class="subhead">Tables</h4>
     <p class="section-sub">Rename tables here. Changes apply to displays and QR codes.</p>
+    <p class="hint-note admin-only-note hidden" id="tablesAdminNote" style="margin:0 0 10px;text-align:left;">🔒 Only the admin can rename tables.</p>
     <div id="tableNameEditor"></div>
     <button class="btn btn-outline" id="saveTableNamesBtn" style="margin-bottom:20px;">Save table names</button>
 
@@ -351,6 +353,7 @@
     </div>
 
     <h4 class="subhead">Rates per minute</h4>
+    <p class="hint-note admin-only-note hidden" id="ratesAdminNote" style="margin:0 0 10px;text-align:left;">🔒 Only the admin can change rates.</p>
     <div id="rateEditor"></div>
     <button class="btn btn-outline" id="saveRatesBtn">Save rates</button>
 
@@ -563,7 +566,7 @@
     }
 
     function billedMinutes(sess, endTime){
-      return Math.max(1, Math.ceil(minutesElapsed(sess, endTime)));
+      return Math.max(1, Math.ceil(minutesElapsed(sess, endTime))) + (sess.extraMinutes || 0);
     }
 
     async function loadAll(){
@@ -778,7 +781,7 @@
       var cost = mins * state.rates[currentTable];
       $("activeTimer").textContent = fmtClock(secs);
       $("activeCost").textContent = fmtMoney(cost);
-      $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min" + (sess.paused ? " · PAUSED" : "");
+      $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min" + (sess.extraMinutes ? (" (incl. +" + sess.extraMinutes + " min added for overdue pause)") : "") + (sess.paused ? " · PAUSED" : "");
       var pausedSecs = totalPausedMs(sess) / 1000;
       $("activePausedLine").classList.toggle("hidden", !sess.paused);
       if(sess.paused) $("activePausedTime").textContent = fmtClock(pausedSecs);
@@ -834,6 +837,23 @@
       toast((state.tableNames[t] || ("Table "+t)) + (goingToPause ? " paused." : " resumed."));
     }
 
+    async function addExtraMinutes(t){
+      var sess = state.sessions[t];
+      if(!sess) return;
+      if(!currentUser || (currentUser.role !== "admin" && currentUser.role !== "supervisor")){ return; }
+      var input = $("extraMinInput" + t);
+      var v = input ? parseFloat(input.value) : NaN;
+      if(isNaN(v) || v <= 0){ toast("Enter a valid number of minutes."); return; }
+      sess.extraMinutes = (sess.extraMinutes || 0) + Math.round(v);
+      await saveSessions();
+      await logChange("Added extra minutes to bill", (state.tableNames[t] || ("Table "+t)) + " · " + sess.name + " · +" + Math.round(v) + " min (overdue pause)");
+      if(input) input.value = "";
+      renderActiveList();
+      renderKickOutList();
+      if(currentTable === t) tickActive();
+      toast(Math.round(v) + " extra minute(s) added to " + (state.tableNames[t] || ("Table "+t)) + "'s bill.");
+    }
+
     async function killSession(t){
       var sess = state.sessions[t];
       if(!sess) return;
@@ -849,6 +869,7 @@
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
         pausedMs: totalPausedMs(sess, endTime),
+        extraMinutes: sess.extraMinutes || 0,
         forceEnded: true
       };
       state.history.unshift(record);
@@ -880,7 +901,8 @@
         table: t, name: sess.name, phone: sess.phone,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
-        pausedMs: totalPausedMs(sess, endTime)
+        pausedMs: totalPausedMs(sess, endTime),
+        extraMinutes: sess.extraMinutes || 0
       };
       state.history.unshift(record);
       state.sessions[t] = null;
@@ -909,7 +931,7 @@
       $("rcPlayer").textContent = r.name + " · " + r.phone;
       $("rcStart").textContent = fmtTime(r.startTime);
       $("rcEnd").textContent = fmtTime(r.endTime);
-      $("rcDuration").textContent = r.minutes + " min";
+      $("rcDuration").textContent = r.minutes + " min" + (r.extraMinutes ? (" (incl. +" + r.extraMinutes + " added)") : "");
       $("rcRate").textContent = fmtMoney(r.rate) + "/min";
       $("rcTotal").textContent = fmtMoney(r.amount);
       var hasUpi = !!(state.upiId && state.upiId.trim());
@@ -956,13 +978,18 @@
 
       var re = $("rateEditor");
       $("upiIdInput").value = state.upiId || "";
+      $("upiIdInput").disabled = !isAdmin;
+      $("saveUpiBtn").disabled = !isAdmin;
+      $("paymentsAdminNote").classList.toggle("hidden", isAdmin);
       re.innerHTML = "";
       TABLES.forEach(function(t){
         var row = document.createElement("div");
         row.className = "rate-row";
-        row.innerHTML = '<span class="tname">Table ' + t + '</span><input type="number" min="1" step="1" id="rateInput' + t + '" value="' + state.rates[t] + '">';
+        row.innerHTML = '<span class="tname">Table ' + t + '</span><input type="number" min="1" step="1" id="rateInput' + t + '" value="' + state.rates[t] + '"' + (isAdmin ? "" : " disabled") + '>';
         re.appendChild(row);
       });
+      $("saveRatesBtn").disabled = !isAdmin;
+      $("ratesAdminNote").classList.toggle("hidden", isAdmin);
 
       var tne = $("tableNameEditor");
       if(tne){
@@ -971,10 +998,12 @@
           var row = document.createElement("div");
           row.className = "rate-row";
           var currentName = state.tableNames[t] || ("Table " + t);
-          row.innerHTML = '<span class="tname">ID ' + t + '</span><input type="text" id="nameInput' + t + '" value="' + currentName + '">';
+          row.innerHTML = '<span class="tname">ID ' + t + '</span><input type="text" id="nameInput' + t + '" value="' + currentName + '"' + (isAdmin ? "" : " disabled") + '>';
           tne.appendChild(row);
         });
       }
+      $("saveTableNamesBtn").disabled = !isAdmin;
+      $("tablesAdminNote").classList.toggle("hidden", isAdmin);
 
       var allowToggle = $("allowEndToggle");
       if(allowToggle) allowToggle.checked = !!state.allowCustomerEnd;
@@ -1025,7 +1054,7 @@
         row.innerHTML =
           '<div>' +
             '<div class="who">' + displayName + (sess.paused ? ' <span class="status-pill paused" style="margin-left:6px;">Paused</span>' : '') + '</div>' +
-            '<div class="meta">' + sess.name + ' · ' + sess.phone + ' · ' + fmtClock(minutesElapsed(sess)*60) + ' · ' + fmtMoney(cost) + (sess.paused ? (' · ⏸ paused ' + fmtClock(pausedForSecs)) : '') + '</div>' +
+            '<div class="meta">' + sess.name + ' · ' + sess.phone + ' · ' + fmtClock(minutesElapsed(sess)*60) + ' · ' + fmtMoney(cost) + (sess.paused ? (' · ⏸ paused ' + fmtClock(pausedForSecs)) : '') + (sess.extraMinutes ? (' · +' + sess.extraMinutes + ' min added') : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;">' +
             '<button class="btn btn-outline btn-sm" data-t="' + t + '" data-action="ownerpause">' + (sess.paused ? "Resume" : "Pause") + '</button>' +
@@ -1057,12 +1086,13 @@
       state.history.slice(0, 20).forEach(function(h){
         var displayName = state.tableNames[h.table] || ("Table " + h.table);
         var pausedNote = (h.pausedMs && h.pausedMs > 1000) ? (' · ⏸ paused ' + fmtClock(h.pausedMs/1000)) : '';
+        var extraNote = h.extraMinutes ? (' · +' + h.extraMinutes + ' min added') : '';
         var row = document.createElement("div");
         row.className = "list-row";
         row.innerHTML =
           '<div>' +
             '<div class="who">' + h.name + ' · ' + displayName + (h.forceEnded ? ' <span class="status-pill busy" style="margin-left:6px;">Force-ended</span>' : '') + '</div>' +
-            '<div class="meta">' + fmtTime(h.startTime) + ' – ' + fmtTime(h.endTime) + ' · ' + h.minutes + ' min' + pausedNote + '</div>' +
+            '<div class="meta">' + fmtTime(h.startTime) + ' – ' + fmtTime(h.endTime) + ' · ' + h.minutes + ' min' + pausedNote + extraNote + '</div>' +
           '</div>' +
           '<div class="amt">' + fmtMoney(h.amount) + '</div>';
         host.appendChild(row);
@@ -1074,6 +1104,7 @@
       if(!host) return;
       host.innerHTML = "";
       var anyActive = false;
+      var canAddMinutes = !!(currentUser && (currentUser.role === "admin" || currentUser.role === "supervisor"));
       TABLES.forEach(function(t){
         var sess = state.sessions[t];
         if(!sess) return;
@@ -1082,22 +1113,47 @@
         var mins = billedMinutes(sess);
         var cost = mins * state.rates[t];
         var pausedForSecs = sess.paused ? (totalPausedMs(sess) / 1000) : 0;
-        var row = document.createElement("div");
-        row.className = "list-row";
-        row.innerHTML =
-          '<div>' +
-            '<div class="who">' + displayName + (sess.paused ? ' <span class="status-pill paused" style="margin-left:6px;">Paused</span>' : '') + '</div>' +
-            '<div class="meta">' + sess.name + ' · ' + sess.phone + ' · ' + fmtClock(minutesElapsed(sess)*60) + ' · ' + fmtMoney(cost) + (sess.paused ? (' · ⏸ paused ' + fmtClock(pausedForSecs)) : '') + '</div>' +
-          '</div>' +
-          '<button class="btn btn-red btn-sm" data-t="' + t + '">Kick Out</button>';
-        host.appendChild(row);
+        var pauseOverdue = false;
+        if(sess.paused && sess.pauseStart){
+          var pausedForMin = (Date.now() - sess.pauseStart) / 60000;
+          if(pausedForMin > (state.maxPauseMinutes || DEFAULT_MAX_PAUSE_MINUTES)) pauseOverdue = true;
+        }
+        var wrap = document.createElement("div");
+        wrap.className = "list-row";
+        wrap.style.flexDirection = "column";
+        wrap.style.alignItems = "stretch";
+        wrap.style.gap = "10px";
+        var topHtml =
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+            '<div>' +
+              '<div class="who">' + displayName + (sess.paused ? ' <span class="status-pill paused" style="margin-left:6px;">Paused</span>' : '') + '</div>' +
+              '<div class="meta">' + sess.name + ' · ' + sess.phone + ' · ' + fmtClock(minutesElapsed(sess)*60) + ' · ' + fmtMoney(cost) + (sess.paused ? (' · ⏸ paused ' + fmtClock(pausedForSecs)) : '') + (sess.extraMinutes ? (' · +' + sess.extraMinutes + ' min added') : '') + '</div>' +
+            '</div>' +
+            '<button class="btn btn-red btn-sm" data-action="kick" data-t="' + t + '">Kick Out</button>' +
+          '</div>';
+        var extraHtml = "";
+        if(pauseOverdue && canAddMinutes){
+          extraHtml =
+            '<div style="background:rgba(217,178,92,0.08);border:1px solid rgba(217,178,92,0.3);border-radius:10px;padding:10px;">' +
+              '<div style="font-size:11px;color:var(--brass-bright);margin-bottom:8px;">⚠ Paused beyond the ' + (state.maxPauseMinutes || DEFAULT_MAX_PAUSE_MINUTES) + ' min limit — add extra minutes to the bill if this table should not stay free while paused.</div>' +
+              '<div class="pw-row" style="margin:0;">' +
+                '<input type="number" min="1" step="1" id="extraMinInput' + t + '" placeholder="Minutes to add">' +
+                '<button class="btn btn-outline btn-sm" data-action="addmin" data-t="' + t + '">Add to bill</button>' +
+              '</div>' +
+            '</div>';
+        }
+        wrap.innerHTML = topHtml + extraHtml;
+        host.appendChild(wrap);
       });
       if(!anyActive){
         host.innerHTML = '<div class="empty-note">No tables occupied right now.</div>';
       }
       host.querySelectorAll("button").forEach(function(btn){
         btn.addEventListener("click", function(){
-          killSession(btn.getAttribute("data-t"));
+          var t = btn.getAttribute("data-t");
+          var action = btn.getAttribute("data-action");
+          if(action === "addmin") addExtraMinutes(t);
+          else killSession(t);
         });
       });
     }
@@ -1147,6 +1203,7 @@
     }
 
     async function saveRates(){
+      if(!currentUser || currentUser.role !== "admin"){ toast("Only the admin can change rates."); return; }
       TABLES.forEach(function(t){
         var v = parseFloat($("rateInput"+t).value);
         if(!isNaN(v) && v > 0) state.rates[t] = v;
@@ -1159,6 +1216,7 @@
     }
 
     async function saveTableNames(){
+      if(!currentUser || currentUser.role !== "admin"){ toast("Only the admin can rename tables."); return; }
       TABLES.forEach(function(t){
         var input = $("nameInput" + t);
         if(input){
@@ -1296,6 +1354,7 @@
     });
 
     $("saveUpiBtn").addEventListener("click", async function(){
+      if(!currentUser || currentUser.role !== "admin"){ toast("Only the admin can change payment settings."); return; }
       state.upiId = $("upiIdInput").value.trim();
       await saveConfig();
       await logChange("Updated UPI ID", state.upiId);

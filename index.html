@@ -151,6 +151,7 @@
   .lock-badge{font-size:32px;text-align:center;margin-bottom:6px;}
   .hint-note{font-size:11px;color:var(--chalk-dim);text-align:center;margin-top:14px;}
   .status-pill.paused{background:rgba(216,210,191,0.18);color:var(--chalk-dim);}
+  .btn-sm{padding:6px 10px;font-size:12px;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -260,6 +261,13 @@
         <span class="slider"></span>
       </label>
     </div>
+    <div style="padding:10px 0;">
+      <span>Max pause duration before "Kill Session" appears (minutes)</span>
+      <div class="pw-row" style="margin-top:8px;">
+        <input type="number" min="1" step="1" id="maxPauseInput" placeholder="2">
+        <button class="btn btn-outline" id="saveMaxPauseBtn">Save</button>
+      </div>
+    </div>
 
     <h4 class="subhead">Rates per minute</h4>
     <div id="rateEditor"></div>
@@ -307,6 +315,14 @@
     var DEFAULT_RATES = {"1":4,"2":5};
     var DEFAULT_TABLE_NAMES = {"1":"Table 1","2":"Table 2"};
     var DEFAULT_PASSWORD = "snooker123";
+    var DEFAULT_MAX_PAUSE_MINUTES = 2;
+    var DEFAULT_HISTORY = [
+      { id:"seed-1", table:"1", name:"Rahul Sharma", phone:"9876543210", startTime: Date.now()-1000*60*95, endTime: Date.now()-1000*60*50, minutes:45, rate:4, amount:180 },
+      { id:"seed-2", table:"2", name:"Priya Verma", phone:"9812345678", startTime: Date.now()-1000*60*190, endTime: Date.now()-1000*60*130, minutes:60, rate:5, amount:300 },
+      { id:"seed-3", table:"1", name:"Aman Gupta", phone:"9898989898", startTime: Date.now()-1000*60*300, endTime: Date.now()-1000*60*250, minutes:50, rate:4, amount:200 },
+      { id:"seed-4", table:"2", name:"Simran Kaur", phone:"9765432109", startTime: Date.now()-1000*60*400, endTime: Date.now()-1000*60*340, minutes:60, rate:5, amount:300 },
+      { id:"seed-5", table:"1", name:"Vikram Singh", phone:"9911223344", startTime: Date.now()-1000*60*500, endTime: Date.now()-1000*60*465, minutes:35, rate:4, amount:140 }
+    ];
 
     var state = {
       rates: DEFAULT_RATES,
@@ -314,6 +330,7 @@
       ownerPassword: DEFAULT_PASSWORD,
       upiId: "",
       allowCustomerEnd: true,
+      maxPauseMinutes: DEFAULT_MAX_PAUSE_MINUTES,
       sessions: {"1":null,"2":null},
       history: [],
       loaded: false
@@ -392,8 +409,9 @@
         state.ownerPassword = (cfgData && cfgData.ownerPassword) || DEFAULT_PASSWORD;
         state.upiId = (cfgData && cfgData.upiId) || "";
         state.allowCustomerEnd = (cfgData && typeof cfgData.allowCustomerEnd !== 'undefined') ? cfgData.allowCustomerEnd : true;
+        state.maxPauseMinutes = (cfgData && cfgData.maxPauseMinutes) || DEFAULT_MAX_PAUSE_MINUTES;
         state.sessions = (sessData && sessData.value) || {"1":null,"2":null};
-        state.history = (histData && histData.value) || [];
+        state.history = (histData && histData.value) || DEFAULT_HISTORY;
         state.loaded = true;
         console.log("✅ Firebase connected successfully");
       } catch(err){
@@ -422,7 +440,8 @@
           tableNames: state.tableNames,
           ownerPassword: state.ownerPassword,
           upiId: state.upiId,
-          allowCustomerEnd: state.allowCustomerEnd
+          allowCustomerEnd: state.allowCustomerEnd,
+          maxPauseMinutes: state.maxPauseMinutes
         });
       } catch(err){ console.error(err); toast("Could not save."); }
     }
@@ -540,23 +559,69 @@
       $("activeTimer").style.color = sess.paused ? "var(--chalk-dim)" : "";
     }
 
+    async function setTablePaused(t, paused){
+      var sess = state.sessions[t];
+      if(!sess) return;
+      var now = Date.now();
+      if(paused && !sess.paused){
+        sess.paused = true;
+        sess.pauseStart = now;
+      } else if(!paused && sess.paused){
+        sess.pausedMs = (sess.pausedMs || 0) + (now - sess.pauseStart);
+        sess.paused = false;
+        sess.pauseStart = null;
+      }
+      await saveSessions();
+    }
+
     async function togglePause(){
       var t = currentTable;
       var sess = state.sessions[t];
       if(!sess) return;
-      var now = Date.now();
-      if(sess.paused){
-        sess.pausedMs = (sess.pausedMs || 0) + (now - sess.pauseStart);
-        sess.paused = false;
-        sess.pauseStart = null;
-      } else {
-        sess.paused = true;
-        sess.pauseStart = now;
-      }
-      await saveSessions();
+      var goingToPause = !sess.paused;
+      await setTablePaused(t, goingToPause);
       updatePauseUI();
       tickActive();
-      toast(sess.paused ? "Timer paused." : "Timer resumed.");
+      toast(goingToPause ? "Timer paused." : "Timer resumed.");
+    }
+
+    async function ownerTogglePause(t){
+      var sess = state.sessions[t];
+      if(!sess) return;
+      var goingToPause = !sess.paused;
+      await setTablePaused(t, goingToPause);
+      renderActiveList();
+      if(currentTable === t){ updatePauseUI(); tickActive(); }
+      toast((state.tableNames[t] || ("Table "+t)) + (goingToPause ? " paused." : " resumed."));
+    }
+
+    async function killSession(t){
+      var sess = state.sessions[t];
+      if(!sess) return;
+      var displayName = state.tableNames[t] || ("Table " + t);
+      if(!confirm("Forcefully end the session on " + displayName + "? This cannot be undone.")) return;
+      var endTime = Date.now();
+      var mins = billedMinutes(sess, endTime);
+      var rate = state.rates[t];
+      var amount = mins * rate;
+      var record = {
+        id: String(endTime) + "-" + t,
+        table: t, name: sess.name, phone: sess.phone,
+        startTime: sess.startTime, endTime: endTime,
+        minutes: mins, rate: rate, amount: amount,
+        forceEnded: true
+      };
+      state.history.unshift(record);
+      state.sessions[t] = null;
+      if(currentTable === t && tickHandle){ clearInterval(tickHandle); tickHandle = null; }
+      await saveSessions();
+      await saveHistory();
+      renderOwner();
+      toast("Session on " + displayName + " forcefully ended.");
+      if(currentTable === t){
+        show("view-home");
+        renderHome();
+      }
     }
 
     async function endGame(){
@@ -655,6 +720,12 @@
       var allowToggle = $("allowEndToggle");
       if(allowToggle) allowToggle.checked = !!state.allowCustomerEnd;
 
+      var maxPauseInput = $("maxPauseInput");
+      if(maxPauseInput) maxPauseInput.value = state.maxPauseMinutes || DEFAULT_MAX_PAUSE_MINUTES;
+
+      renderActiveList();
+      renderHistoryList();
+
       var qg = $("qrGrid");
       qg.innerHTML = "";
       TABLES.forEach(function(t){
@@ -666,6 +737,82 @@
         card.innerHTML = '<img src="' + qrImg + '" alt="QR code"><div class="cap">' + displayName + '</div>';
         qg.appendChild(card);
       });
+    }
+
+    function renderActiveList(){
+      var host = $("activeList");
+      if(!host) return;
+      var anyActive = false;
+      host.innerHTML = "";
+      TABLES.forEach(function(t){
+        var sess = state.sessions[t];
+        if(!sess) return;
+        anyActive = true;
+        var displayName = state.tableNames[t] || ("Table " + t);
+        var mins = billedMinutes(sess);
+        var cost = mins * state.rates[t];
+        var pauseOverdue = false;
+        if(sess.paused && sess.pauseStart){
+          var pausedFor = (Date.now() - sess.pauseStart) / 60000;
+          if(pausedFor > (state.maxPauseMinutes || DEFAULT_MAX_PAUSE_MINUTES)) pauseOverdue = true;
+        }
+        var row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML =
+          '<div>' +
+            '<div class="who">' + displayName + (sess.paused ? ' <span class="status-pill paused" style="margin-left:6px;">Paused</span>' : '') + '</div>' +
+            '<div class="meta">' + sess.name + ' · ' + sess.phone + ' · ' + fmtClock(minutesElapsed(sess)*60) + ' · ' + fmtMoney(cost) + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;">' +
+            '<button class="btn btn-outline btn-sm" data-t="' + t + '" data-action="ownerpause">' + (sess.paused ? "Resume" : "Pause") + '</button>' +
+            (pauseOverdue ? '<button class="btn btn-red btn-sm" data-t="' + t + '" data-action="kill">Kill Session</button>' : '') +
+          '</div>';
+        host.appendChild(row);
+      });
+      if(!anyActive){
+        host.innerHTML = '<div class="empty-note">No active games right now.</div>';
+      }
+      host.querySelectorAll("button").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var t = btn.getAttribute("data-t");
+          var action = btn.getAttribute("data-action");
+          if(action === "ownerpause") ownerTogglePause(t);
+          else if(action === "kill") killSession(t);
+        });
+      });
+    }
+
+    function renderHistoryList(){
+      var host = $("historyList");
+      if(!host) return;
+      host.innerHTML = "";
+      if(!state.history.length){
+        host.innerHTML = '<div class="empty-note">No games recorded yet.</div>';
+        return;
+      }
+      state.history.slice(0, 20).forEach(function(h){
+        var displayName = state.tableNames[h.table] || ("Table " + h.table);
+        var row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML =
+          '<div>' +
+            '<div class="who">' + h.name + ' · ' + displayName + (h.forceEnded ? ' <span class="status-pill busy" style="margin-left:6px;">Force-ended</span>' : '') + '</div>' +
+            '<div class="meta">' + fmtTime(h.startTime) + ' – ' + fmtTime(h.endTime) + ' · ' + h.minutes + ' min</div>' +
+          '</div>' +
+          '<div class="amt">' + fmtMoney(h.amount) + '</div>';
+        host.appendChild(row);
+      });
+    }
+
+    function startOwnerPoll(){
+      stopOwnerPoll();
+      pollHandle = setInterval(function(){
+        renderActiveList();
+      }, 1000);
+    }
+
+    function stopOwnerPoll(){
+      if(pollHandle){ clearInterval(pollHandle); pollHandle = null; }
     }
 
     async function saveRates(){
@@ -706,6 +853,7 @@
         isOwnerAuthed = true;
         renderOwner();
         show("view-owner");
+        startOwnerPoll();
         toast("Login successful!");
       } else {
         $("loginErr").textContent = "Wrong password. Try snooker123";
@@ -715,7 +863,7 @@
 
     // Nav wiring
     $("ownerToggleBtn").addEventListener("click", function(){
-      if(isOwnerAuthed){ renderOwner(); show("view-owner"); }
+      if(isOwnerAuthed){ renderOwner(); show("view-owner"); startOwnerPoll(); }
       else { openLogin(); }
     });
     $("loginSubmitBtn").addEventListener("click", attemptLogin);
@@ -730,6 +878,17 @@
       state.allowCustomerEnd = this.checked;
       await saveConfig();
       toast("Setting updated.");
+    });
+    $("saveMaxPauseBtn").addEventListener("click", async function(){
+      var v = parseFloat($("maxPauseInput").value);
+      if(!isNaN(v) && v > 0){
+        state.maxPauseMinutes = v;
+        await saveConfig();
+        renderActiveList();
+        toast("Pause limit saved.");
+      } else {
+        toast("Enter a valid number of minutes.");
+      }
     });
 
     $("entryBackBtn").addEventListener("click", function(){
@@ -749,11 +908,13 @@
     });
 
     $("ownerBackBtn").addEventListener("click", function(){
+      stopOwnerPoll();
       show("view-home");
       renderHome();
     });
 
     $("logoutBtn").addEventListener("click", function(){
+      stopOwnerPoll();
       isOwnerAuthed = false;
       show("view-home");
       renderHome();

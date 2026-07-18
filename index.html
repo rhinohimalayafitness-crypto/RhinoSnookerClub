@@ -146,6 +146,11 @@
   .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; -webkit-transition: .4s; transition: .4s; border-radius: 50%; }
   input:checked + .slider { background-color: var(--brass); }
   input:checked + .slider:before { transform: translateX(24px); }
+  .pw-row{display:flex;gap:10px;align-items:center;margin:8px 0 4px;}
+  .pw-row input{flex:1;}
+  .lock-badge{font-size:32px;text-align:center;margin-bottom:6px;}
+  .hint-note{font-size:11px;color:var(--chalk-dim);text-align:center;margin-top:14px;}
+  .status-pill.paused{background:rgba(216,210,191,0.18);color:var(--chalk-dim);}
 </style>
 </head>
 <body>
@@ -187,6 +192,7 @@
       <div class="cost" id="activeCost">₹0</div>
       <div class="costsub" id="activeCostSub"></div>
     </div>
+    <button class="btn btn-outline btn-block" id="pauseGameBtn" style="margin-bottom:10px;">Pause</button>
     <button class="btn btn-red btn-block" id="endGameBtn">End game</button>
   </div>
 
@@ -353,13 +359,22 @@
       return d.toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit"});
     }
 
-    function minutesElapsed(startTime, endTime){
-      var ms = (endTime||Date.now()) - startTime;
-      return Math.max(0, ms/60000);
+    function effectiveElapsedMs(sess, endTime){
+      var end = endTime || Date.now();
+      var raw = end - sess.startTime;
+      var pausedMs = sess.pausedMs || 0;
+      if(sess.paused && sess.pauseStart){
+        pausedMs += (end - sess.pauseStart);
+      }
+      return Math.max(0, raw - pausedMs);
     }
 
-    function billedMinutes(startTime, endTime){
-      return Math.max(1, Math.ceil(minutesElapsed(startTime, endTime)));
+    function minutesElapsed(sess, endTime){
+      return effectiveElapsedMs(sess, endTime) / 60000;
+    }
+
+    function billedMinutes(sess, endTime){
+      return Math.max(1, Math.ceil(minutesElapsed(sess, endTime)));
     }
 
     async function loadAll(){
@@ -388,6 +403,18 @@
       }
     }
 
+    async function saveSessions(){
+      try {
+        await db.collection("club").doc("sessions").set({ value: state.sessions });
+      } catch(err){ console.error(err); toast("Could not save session."); }
+    }
+
+    async function saveHistory(){
+      try {
+        await db.collection("club").doc("history").set({ value: state.history });
+      } catch(err){ console.error(err); toast("Could not save history."); }
+    }
+
     async function saveConfig(){
       try {
         await db.collection("club").doc("config").set({
@@ -409,11 +436,13 @@
         var displayName = state.tableNames[t] || ("Table " + t);
         var card = document.createElement("div");
         card.className = "table-card" + (sess ? " busy" : "");
-        var mins = sess ? minutesElapsed(sess.startTime) : 0;
-        var cost = sess ? billedMinutes(sess.startTime) * rate : 0;
+        var mins = sess ? minutesElapsed(sess) : 0;
+        var cost = sess ? billedMinutes(sess) * rate : 0;
+        var pillClass = sess ? (sess.paused ? "paused" : "busy") : "free";
+        var pillText = sess ? (sess.paused ? "Paused" : "In play") : "Free";
         card.innerHTML = 
           '<div class="tname">' + displayName + '</div>' +
-          '<span class="status-pill ' + (sess ? "busy" : "free") + '">' + (sess ? "In play" : "Free") + '</span>' +
+          '<span class="status-pill ' + pillClass + '">' + pillText + '</span>' +
           '<div class="rate-line">' + fmtMoney(rate) + ' / min</div>' +
           (sess ? '<div class="occ-line">' + sess.name + '<br>' + fmtClock(mins*60) + ' · ' + fmtMoney(cost) + '</div>' : '') +
           '<button class="btn ' + (sess ? "btn-outline" : "btn-brass") + ' btn-block" data-t="' + t + '" data-action="' + (sess ? "view" : "start") + '">' +
@@ -485,18 +514,47 @@
       if(tickHandle) clearInterval(tickHandle);
       tickHandle = setInterval(tickActive, 1000);
       $("endGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
+      $("pauseGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
+      updatePauseUI();
     }
 
     function tickActive(){
       if(!currentTable) return;
       var sess = state.sessions[currentTable];
       if(!sess) return;
-      var secs = minutesElapsed(sess.startTime) * 60;
-      var mins = billedMinutes(sess.startTime);
+      var secs = minutesElapsed(sess) * 60;
+      var mins = billedMinutes(sess);
       var cost = mins * state.rates[currentTable];
       $("activeTimer").textContent = fmtClock(secs);
       $("activeCost").textContent = fmtMoney(cost);
-      $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min";
+      $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min" + (sess.paused ? " · PAUSED" : "");
+    }
+
+    function updatePauseUI(){
+      var sess = state.sessions[currentTable];
+      var btn = $("pauseGameBtn");
+      if(!sess || !btn) return;
+      btn.textContent = sess.paused ? "Resume" : "Pause";
+      $("activeTimer").style.color = sess.paused ? "var(--chalk-dim)" : "";
+    }
+
+    async function togglePause(){
+      var t = currentTable;
+      var sess = state.sessions[t];
+      if(!sess) return;
+      var now = Date.now();
+      if(sess.paused){
+        sess.pausedMs = (sess.pausedMs || 0) + (now - sess.pauseStart);
+        sess.paused = false;
+        sess.pauseStart = null;
+      } else {
+        sess.paused = true;
+        sess.pauseStart = now;
+      }
+      await saveSessions();
+      updatePauseUI();
+      tickActive();
+      toast(sess.paused ? "Timer paused." : "Timer resumed.");
     }
 
     async function endGame(){
@@ -504,7 +562,7 @@
       var sess = state.sessions[t];
       if(!sess) return;
       var endTime = Date.now();
-      var mins = billedMinutes(sess.startTime, endTime);
+      var mins = billedMinutes(sess, endTime);
       var rate = state.rates[t];
       var amount = mins * rate;
       var record = {
@@ -662,6 +720,7 @@
     $("loginPassword").addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
     $("entryStartBtn").addEventListener("click", startGame);
     $("endGameBtn").addEventListener("click", endGame);
+    $("pauseGameBtn").addEventListener("click", togglePause);
     $("payUpiBtn").addEventListener("click", payViaUpi);
     $("saveRatesBtn").addEventListener("click", saveRates);
     $("saveTableNamesBtn").addEventListener("click", saveTableNames);
@@ -669,6 +728,59 @@
       state.allowCustomerEnd = this.checked;
       await saveConfig();
       toast("Setting updated.");
+    });
+
+    $("entryBackBtn").addEventListener("click", function(){
+      show("view-home");
+      renderHome();
+    });
+
+    $("activeBackBtn").addEventListener("click", function(){
+      if(tickHandle){ clearInterval(tickHandle); tickHandle = null; }
+      show("view-home");
+      renderHome();
+    });
+
+    $("loginBackBtn").addEventListener("click", function(){
+      show("view-home");
+      renderHome();
+    });
+
+    $("ownerBackBtn").addEventListener("click", function(){
+      show("view-home");
+      renderHome();
+    });
+
+    $("logoutBtn").addEventListener("click", function(){
+      isOwnerAuthed = false;
+      show("view-home");
+      renderHome();
+      toast("Logged out.");
+    });
+
+    $("receiptDoneBtn").addEventListener("click", function(){
+      currentReceipt = null;
+      currentTable = null;
+      show("view-home");
+      renderHome();
+    });
+
+    $("changePasswordBtn").addEventListener("click", async function(){
+      var pw = $("newPassword").value.trim();
+      if(!pw || pw.length < 4){
+        toast("Password must be at least 4 characters.");
+        return;
+      }
+      state.ownerPassword = pw;
+      await saveConfig();
+      $("newPassword").value = "";
+      toast("Password updated.");
+    });
+
+    $("saveUpiBtn").addEventListener("click", async function(){
+      state.upiId = $("upiIdInput").value.trim();
+      await saveConfig();
+      toast("UPI ID saved.");
     });
 
     async function init(){

@@ -196,6 +196,7 @@
     </div>
     <button class="btn btn-outline btn-block" id="pauseGameBtn" style="margin-bottom:10px;">Pause</button>
     <button class="btn btn-red btn-block" id="endGameBtn">End game</button>
+    <p class="hint-note hidden" id="activeViewerNote">You're viewing this table's status. Game controls are only available on the device that started this game, or from the owner dashboard.</p>
   </div>
 
   <!-- RECEIPT -->
@@ -408,6 +409,67 @@
       return d.toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit"});
     }
 
+    function fmtDateTime(ts){
+      var d = new Date(ts);
+      return d.toLocaleDateString("en-IN", {day:"2-digit", month:"short"}) + " · " +
+        d.toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+    }
+
+    function genSessionId(){
+      return "sess_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+    }
+
+    function renderAccountsList(){
+      var host = $("accountsListHost");
+      if(!host) return;
+      host.innerHTML = "";
+      var usernames = Object.keys(state.accounts).sort();
+      var any = false;
+      usernames.forEach(function(u){
+        var acct = state.accounts[u];
+        if(acct.role !== "supervisor") return;
+        any = true;
+        var row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML =
+          '<div>' +
+            '<div class="who">' + u + '<span class="role-badge">' + acct.role + '</span></div>' +
+            '<div class="meta">created ' + fmtDateTime(acct.createdAt) + (acct.createdBy ? (" by " + acct.createdBy) : "") + '</div>' +
+          '</div>' +
+          '<button class="btn btn-red btn-sm" data-u="' + u + '">Remove</button>';
+        host.appendChild(row);
+      });
+      if(!any){
+        host.innerHTML = '<div class="empty-note">No supervisor accounts yet.</div>';
+      }
+      host.querySelectorAll("button").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          removeSupervisor(btn.getAttribute("data-u"));
+        });
+      });
+    }
+
+    function renderChangesList(){
+      var host = $("changesList");
+      if(!host) return;
+      host.innerHTML = "";
+      if(!state.changes.length){
+        host.innerHTML = '<div class="empty-note">No changes logged yet.</div>';
+        return;
+      }
+      state.changes.slice(0, 100).forEach(function(c){
+        var row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML =
+          '<div>' +
+            '<div class="who">' + c.user + '<span class="role-badge">' + c.role + '</span></div>' +
+            '<div class="meta">' + c.action + (c.details ? (" — " + c.details) : "") + '</div>' +
+          '</div>' +
+          '<div class="meta">' + fmtDateTime(c.time) + '</div>';
+        host.appendChild(row);
+      });
+    }
+
     function effectiveElapsedMs(sess, endTime){
       var end = endTime || Date.now();
       var raw = end - sess.startTime;
@@ -591,9 +653,11 @@
           if(currentSessions[currentTable]){
             throw new Error("Table is already occupied.");
           }
-          currentSessions[currentTable] = { name: name, phone: phone, startTime: Date.now() };
+          var sessionId = genSessionId();
+          currentSessions[currentTable] = { name: name, phone: phone, startTime: Date.now(), sessionId: sessionId };
           transaction.set(db.collection("club").doc("sessions"), { value: currentSessions });
           state.sessions = currentSessions;
+          try { localStorage.setItem("snooker_sid_" + currentTable, sessionId); } catch(e){}
         });
         openActive(currentTable);
       } catch(err){
@@ -613,9 +677,18 @@
       tickActive();
       if(tickHandle) clearInterval(tickHandle);
       tickHandle = setInterval(tickActive, 1000);
-      $("endGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
-      $("pauseGameBtn").style.display = state.allowCustomerPause ? "block" : "none";
       updatePauseUI();
+    }
+
+    function ownsCurrentSession(t){
+      var sess = state.sessions[t];
+      if(!sess) return false;
+      var mySid = null;
+      try { mySid = localStorage.getItem("snooker_sid_" + t); } catch(e){}
+      // Sessions created before this feature shipped won't have a sessionId yet —
+      // treat those as owned by whoever is viewing so existing games aren't locked out.
+      if(!sess.sessionId) return true;
+      return !!mySid && mySid === sess.sessionId;
     }
 
     function tickActive(){
@@ -628,8 +701,10 @@
       $("activeTimer").textContent = fmtClock(secs);
       $("activeCost").textContent = fmtMoney(cost);
       $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min" + (sess.paused ? " · PAUSED" : "");
-      $("endGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
-      $("pauseGameBtn").style.display = state.allowCustomerPause ? "block" : "none";
+      var owns = ownsCurrentSession(currentTable);
+      $("endGameBtn").style.display = (owns && state.allowCustomerEnd) ? "block" : "none";
+      $("pauseGameBtn").style.display = (owns && state.allowCustomerPause) ? "block" : "none";
+      $("activeViewerNote").classList.toggle("hidden", owns);
     }
 
     function updatePauseUI(){
@@ -659,6 +734,7 @@
       var t = currentTable;
       var sess = state.sessions[t];
       if(!sess) return;
+      if(!ownsCurrentSession(t)){ toast("This game is controlled from another device."); tickActive(); return; }
       var goingToPause = !sess.paused;
       await setTablePaused(t, goingToPause);
       updatePauseUI();
@@ -671,6 +747,7 @@
       if(!sess) return;
       var goingToPause = !sess.paused;
       await setTablePaused(t, goingToPause);
+      await logChange(goingToPause ? "Paused table" : "Resumed table", (state.tableNames[t] || ("Table "+t)) + " · " + sess.name);
       renderActiveList();
       if(currentTable === t){ updatePauseUI(); tickActive(); }
       toast((state.tableNames[t] || ("Table "+t)) + (goingToPause ? " paused." : " resumed."));
@@ -695,8 +772,10 @@
       state.history.unshift(record);
       state.sessions[t] = null;
       if(currentTable === t && tickHandle){ clearInterval(tickHandle); tickHandle = null; }
+      try { localStorage.removeItem("snooker_sid_" + t); } catch(e){}
       await saveSessions();
       await saveHistory();
+      await logChange("Force-ended session", displayName + " · " + sess.name + " · " + fmtMoney(amount));
       renderOwner();
       toast("Session on " + displayName + " forcefully ended.");
       if(currentTable === t){
@@ -709,6 +788,7 @@
       var t = currentTable;
       var sess = state.sessions[t];
       if(!sess) return;
+      if(!ownsCurrentSession(t)){ toast("This game is controlled from another device."); tickActive(); return; }
       var endTime = Date.now();
       var mins = billedMinutes(sess, endTime);
       var rate = state.rates[t];
@@ -722,6 +802,7 @@
       state.history.unshift(record);
       state.sessions[t] = null;
       if(tickHandle){ clearInterval(tickHandle); tickHandle = null; }
+      try { localStorage.removeItem("snooker_sid_" + t); } catch(e){}
       await saveSessions();
       await saveHistory();
       showReceipt(record);
@@ -947,12 +1028,45 @@
       if(pollHandle){ clearInterval(pollHandle); pollHandle = null; }
     }
 
+    async function createSupervisor(){
+      if(!currentUser || currentUser.role !== "admin"){ toast("Only the admin can create accounts."); return; }
+      var u = $("newSupUsername").value.trim();
+      var p = $("newSupPassword").value.trim();
+      if(!u || !p){ toast("Enter a username and password."); return; }
+      if(p.length < 4){ toast("Password must be at least 4 characters."); return; }
+      if(state.accounts[u]){ toast("That username is already taken."); return; }
+      state.accounts[u] = {
+        password: p,
+        role: "supervisor",
+        createdAt: Date.now(),
+        createdBy: currentUser.username
+      };
+      await saveAccounts();
+      await logChange("Created supervisor account", u);
+      $("newSupUsername").value = "";
+      $("newSupPassword").value = "";
+      renderAccountsList();
+      toast("Supervisor account created.");
+    }
+
+    async function removeSupervisor(u){
+      if(!currentUser || currentUser.role !== "admin"){ toast("Only the admin can remove accounts."); return; }
+      if(!state.accounts[u] || state.accounts[u].role !== "supervisor") return;
+      if(!confirm("Remove supervisor account \"" + u + "\"?")) return;
+      delete state.accounts[u];
+      await saveAccounts();
+      await logChange("Removed supervisor account", u);
+      renderAccountsList();
+      toast("Supervisor account removed.");
+    }
+
     async function saveRates(){
       TABLES.forEach(function(t){
         var v = parseFloat($("rateInput"+t).value);
         if(!isNaN(v) && v > 0) state.rates[t] = v;
       });
       await saveConfig();
+      await logChange("Updated rates", TABLES.map(function(t){ return (state.tableNames[t]||("Table "+t)) + ": " + fmtMoney(state.rates[t]) + "/min"; }).join(", "));
       renderOwner();
       renderHome();
       toast("Rates saved.");
@@ -967,6 +1081,7 @@
         }
       });
       await saveConfig();
+      await logChange("Renamed tables", TABLES.map(function(t){ return t + " → " + state.tableNames[t]; }).join(", "));
       renderOwner();
       renderHome();
       toast("Table names saved.");
@@ -1014,11 +1129,13 @@
     $("allowEndToggle").addEventListener("change", async function(){
       state.allowCustomerEnd = this.checked;
       await saveConfig();
+      await logChange("Changed customer-end setting", this.checked ? "enabled" : "disabled");
       toast("Setting updated.");
     });
     $("allowPauseToggle").addEventListener("change", async function(){
       state.allowCustomerPause = this.checked;
       await saveConfig();
+      await logChange("Changed customer-pause setting", this.checked ? "enabled" : "disabled");
       if(currentTable) tickActive();
       toast("Setting updated.");
     });
@@ -1027,12 +1144,14 @@
       if(!isNaN(v) && v > 0){
         state.maxPauseMinutes = v;
         await saveConfig();
+        await logChange("Changed max pause duration", v + " min");
         renderActiveList();
         toast("Pause limit saved.");
       } else {
         toast("Enter a valid number of minutes.");
       }
     });
+    $("createSupervisorBtn").addEventListener("click", createSupervisor);
 
     $("entryBackBtn").addEventListener("click", function(){
       show("view-home");
@@ -1078,8 +1197,14 @@
         toast("Password must be at least 4 characters.");
         return;
       }
-      state.ownerPassword = pw;
-      await saveConfig();
+      if(currentUser && state.accounts[currentUser.username]){
+        state.accounts[currentUser.username].password = pw;
+        await saveAccounts();
+      } else {
+        state.ownerPassword = pw;
+        await saveConfig();
+      }
+      await logChange("Changed own password", currentUser ? currentUser.username : "");
       $("newPassword").value = "";
       toast("Password updated.");
     });
@@ -1087,6 +1212,7 @@
     $("saveUpiBtn").addEventListener("click", async function(){
       state.upiId = $("upiIdInput").value.trim();
       await saveConfig();
+      await logChange("Updated UPI ID", state.upiId);
       toast("UPI ID saved.");
     });
 

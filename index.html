@@ -528,6 +528,8 @@
       $("activeTimer").textContent = fmtClock(secs);
       $("activeCost").textContent = fmtMoney(cost);
       $("activeCostSub").textContent = mins + " min billed × " + fmtMoney(state.rates[currentTable]) + "/min" + (sess.paused ? " · PAUSED" : "");
+      $("endGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
+      $("pauseGameBtn").style.display = state.allowCustomerEnd ? "block" : "none";
     }
 
     function updatePauseUI(){

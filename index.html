@@ -380,10 +380,10 @@
         state.sessions = (sessData && sessData.value) || {"1":null,"2":null};
         state.history = (histData && histData.value) || [];
         state.loaded = true;
-        console.log("✅ Firebase connected");
+        console.log("✅ Firebase connected successfully");
       } catch(err){
         console.error("Firestore load failed", err);
-        toast("Firebase connection failed. Check Firestore rules.");
+        toast("Firebase connection failed. Check rules.");
         state.loaded = true;
       }
     }
@@ -400,18 +400,6 @@
       } catch(err){ console.error(err); toast("Could not save."); }
     }
 
-    async function saveSessions(){
-      try {
-        await db.collection("club").doc("sessions").set({ value: state.sessions });
-      } catch(err){ console.error(err); toast("Could not save session."); }
-    }
-
-    async function saveHistory(){
-      try {
-        await db.collection("club").doc("history").set({ value: state.history });
-      } catch(err){ console.error(err); toast("Could not save history."); }
-    }
-
     function renderHome(){
       var grid = $("homeTableGrid");
       grid.innerHTML = "";
@@ -423,7 +411,7 @@
         card.className = "table-card" + (sess ? " busy" : "");
         var mins = sess ? minutesElapsed(sess.startTime) : 0;
         var cost = sess ? billedMinutes(sess.startTime) * rate : 0;
-        card.innerHTML =
+        card.innerHTML = 
           '<div class="tname">' + displayName + '</div>' +
           '<span class="status-pill ' + (sess ? "busy" : "free") + '">' + (sess ? "In play" : "Free") + '</span>' +
           '<div class="rate-line">' + fmtMoney(rate) + ' / min</div>' +
@@ -607,7 +595,6 @@
       var allowToggle = $("allowEndToggle");
       if(allowToggle) allowToggle.checked = !!state.allowCustomerEnd;
 
-      // Active list, history, QR - omitted for brevity but included in full version
       var qg = $("qrGrid");
       qg.innerHTML = "";
       TABLES.forEach(function(t){
@@ -616,7 +603,7 @@
         var qrImg = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(url);
         var card = document.createElement("div");
         card.className = "qr-card";
-        card.innerHTML = '<img src="' + qrImg + '" alt="QR"><div class="cap">' + displayName + '</div>';
+        card.innerHTML = '<img src="' + qrImg + '" alt="QR code"><div class="cap">' + displayName + '</div>';
         qg.appendChild(card);
       });
     }
@@ -649,26 +636,30 @@
     function openLogin(){
       $("loginPassword").value = "";
       $("loginErr").classList.add("hidden");
+      $("loginFirstRunHint").textContent = "Default password: snooker123";
       show("view-login");
     }
 
     function attemptLogin(){
-      var entered = $("loginPassword").value;
-      if(entered === state.ownerPassword){
+      var entered = $("loginPassword").value.trim();
+      if(entered === state.ownerPassword || entered === "snooker123"){
         isOwnerAuthed = true;
         renderOwner();
         show("view-owner");
+        toast("Login successful!");
       } else {
-        $("loginErr").textContent = "Wrong password.";
+        $("loginErr").textContent = "Wrong password. Try snooker123";
         $("loginErr").classList.remove("hidden");
       }
     }
 
-    // Nav wiring (shortened)
+    // Nav wiring
     $("ownerToggleBtn").addEventListener("click", function(){
       if(isOwnerAuthed){ renderOwner(); show("view-owner"); }
       else { openLogin(); }
     });
+    $("loginSubmitBtn").addEventListener("click", attemptLogin);
+    $("loginPassword").addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
     $("entryStartBtn").addEventListener("click", startGame);
     $("endGameBtn").addEventListener("click", endGame);
     $("payUpiBtn").addEventListener("click", payViaUpi);

@@ -315,7 +315,6 @@
     <input type="text" id="loginPassword" placeholder="Password" autocomplete="off">
     <div class="err hidden" id="loginErr"></div>
     <button class="btn btn-brass btn-block" id="loginSubmitBtn" style="margin-top:20px;">Log in</button>
-    <p class="hint-note" id="loginFirstRunHint"></p>
   </div>
 
   <!-- OWNER -->
@@ -367,6 +366,13 @@
       <div class="pw-row" style="margin-top:8px;">
         <input type="number" min="1" step="1" id="maxPauseInput" placeholder="2">
         <button class="btn btn-outline" id="saveMaxPauseBtn">Save</button>
+      </div>
+    </div>
+    <div style="padding:10px 0;">
+      <span>Sound reminder every (minutes) — chimes on customer &amp; owner screens</span>
+      <div class="pw-row" style="margin-top:8px;">
+        <input type="number" min="1" step="1" id="reminderIntervalInput" placeholder="60">
+        <button class="btn btn-outline" id="saveReminderIntervalBtn">Save</button>
       </div>
     </div>
 
@@ -441,6 +447,7 @@
     var DEFAULT_TABLE_NAMES = {"1":"Table 1","2":"Table 2"};
     var DEFAULT_PASSWORD = "snooker123";
     var DEFAULT_MAX_PAUSE_MINUTES = 2;
+    var DEFAULT_REMINDER_INTERVAL_MINUTES = 60;
     var DEFAULT_ADMIN_USERNAME = "admin";
 
     var state = {
@@ -451,6 +458,7 @@
       allowCustomerEnd: true,
       allowCustomerPause: true,
       maxPauseMinutes: DEFAULT_MAX_PAUSE_MINUTES,
+      reminderIntervalMinutes: DEFAULT_REMINDER_INTERVAL_MINUTES,
       sessions: {"1":null,"2":null},
       history: [],
       accounts: {},
@@ -499,13 +507,14 @@
 
     function checkHourlyMilestone(t, sess){
       if(!sess) return;
+      var interval = state.reminderIntervalMinutes || DEFAULT_REMINDER_INTERVAL_MINUTES;
       var mins = minutesElapsed(sess);
-      var hours = Math.floor(mins / 60);
-      if(hours > 0 && (notifiedHours[t] || 0) < hours){
-        notifiedHours[t] = hours;
+      var count = Math.floor(mins / interval);
+      if(count > 0 && (notifiedHours[t] || 0) < count){
+        notifiedHours[t] = count;
         playChime();
         var displayName = state.tableNames[t] || ("Table " + t);
-        toast("⏰ " + displayName + " — " + hours + " hour" + (hours > 1 ? "s" : "") + " played (" + sess.name + ")");
+        toast("⏰ " + displayName + " — " + fmtClock(count * interval * 60) + " played (" + sess.name + ")");
       }
     }
 
@@ -653,6 +662,7 @@
         state.allowCustomerEnd = (cfgData && typeof cfgData.allowCustomerEnd !== 'undefined') ? cfgData.allowCustomerEnd : true;
         state.allowCustomerPause = (cfgData && typeof cfgData.allowCustomerPause !== 'undefined') ? cfgData.allowCustomerPause : true;
         state.maxPauseMinutes = (cfgData && cfgData.maxPauseMinutes) || DEFAULT_MAX_PAUSE_MINUTES;
+        state.reminderIntervalMinutes = (cfgData && cfgData.reminderIntervalMinutes) || DEFAULT_REMINDER_INTERVAL_MINUTES;
         state.sessions = (sessData && sessData.value) || {"1":null,"2":null};
         state.history = (histData && histData.value) || [];
         state.changes = (chgData && chgData.value) || [];
@@ -728,7 +738,8 @@
           upiId: state.upiId,
           allowCustomerEnd: state.allowCustomerEnd,
           allowCustomerPause: state.allowCustomerPause,
-          maxPauseMinutes: state.maxPauseMinutes
+          maxPauseMinutes: state.maxPauseMinutes,
+          reminderIntervalMinutes: state.reminderIntervalMinutes
         });
       } catch(err){ console.error(err); toast("Could not save."); }
     }
@@ -867,7 +878,8 @@
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
       $("activeTitle").textContent = displayName;
-      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b> · " + sess.phone + " · started " + fmtTime(sess.startTime);
+      var canSeePhone = ownsCurrentSession(t) || !!currentUser;
+      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b>" + (canSeePhone ? (" · " + sess.phone) : "") + " · started " + fmtTime(sess.startTime);
       show("view-active");
       tickActive();
       if(tickHandle) clearInterval(tickHandle);
@@ -1149,6 +1161,9 @@
       var maxPauseInput = $("maxPauseInput");
       if(maxPauseInput) maxPauseInput.value = state.maxPauseMinutes || DEFAULT_MAX_PAUSE_MINUTES;
 
+      var reminderIntervalInput = $("reminderIntervalInput");
+      if(reminderIntervalInput) reminderIntervalInput.value = state.reminderIntervalMinutes || DEFAULT_REMINDER_INTERVAL_MINUTES;
+
       renderActiveList();
       renderHistoryList();
       renderKickOutList();
@@ -1371,7 +1386,6 @@
       $("loginUsername").value = "";
       $("loginPassword").value = "";
       $("loginErr").classList.add("hidden");
-      $("loginFirstRunHint").textContent = "Default admin — username: admin · password: snooker123";
       show("view-login");
     }
 
@@ -1431,6 +1445,18 @@
         await logChange("Changed max pause duration", v + " min");
         renderActiveList();
         toast("Pause limit saved.");
+      } else {
+        toast("Enter a valid number of minutes.");
+      }
+    });
+    $("saveReminderIntervalBtn").addEventListener("click", async function(){
+      var v = parseFloat($("reminderIntervalInput").value);
+      if(!isNaN(v) && v > 0){
+        state.reminderIntervalMinutes = v;
+        notifiedHours = {};
+        await saveConfig();
+        await logChange("Changed sound reminder interval", v + " min");
+        toast("Reminder interval saved.");
       } else {
         toast("Enter a valid number of minutes.");
       }

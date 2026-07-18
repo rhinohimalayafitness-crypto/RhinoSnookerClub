@@ -1023,7 +1023,7 @@
       TABLES.forEach(function(t){
         var displayName = state.tableNames[t] || ("Table " + t);
         var url = location.href.split("?")[0] + "?table=" + t;
-        var qrImg = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(url);
+        var qrImg = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" + encodeURIComponent(url);
         var card = document.createElement("div");
         card.className = "qr-card";
         card.innerHTML = '<img src="' + qrImg + '" alt="QR code"><div class="cap">' + displayName + '</div>';

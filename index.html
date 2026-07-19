@@ -1719,6 +1719,35 @@
       toast("UPI ID saved.");
     });
 
+    function refreshVisibleScreens(){
+      if(!$("view-home").classList.contains("hidden")) renderHome();
+      if(!$("view-board").classList.contains("hidden")) renderBoard();
+      if(!$("view-owner").classList.contains("hidden")) renderOwner();
+      // view-active reads state.sessions on its own 1-second tick, so it
+      // picks up remote changes automatically without needing a re-render here.
+    }
+
+    function startLiveSync(){
+      db.collection("club").doc("sessions").onSnapshot(function(snap){
+        state.sessions = (snap.exists && snap.data().value) || {"1":null,"2":null};
+        refreshVisibleScreens();
+      }, function(err){ console.error("Live sessions sync failed", err); });
+
+      db.collection("club").doc("config").onSnapshot(function(snap){
+        var cfgData = snap.exists ? snap.data() : null;
+        if(cfgData){
+          state.rates = cfgData.rates || state.rates;
+          state.tableNames = cfgData.tableNames || state.tableNames;
+          state.upiId = (typeof cfgData.upiId !== 'undefined') ? cfgData.upiId : state.upiId;
+          state.allowCustomerEnd = (typeof cfgData.allowCustomerEnd !== 'undefined') ? cfgData.allowCustomerEnd : state.allowCustomerEnd;
+          state.allowCustomerPause = (typeof cfgData.allowCustomerPause !== 'undefined') ? cfgData.allowCustomerPause : state.allowCustomerPause;
+          state.maxPauseMinutes = cfgData.maxPauseMinutes || state.maxPauseMinutes;
+          state.reminderIntervalMinutes = cfgData.reminderIntervalMinutes || state.reminderIntervalMinutes;
+        }
+        refreshVisibleScreens();
+      }, function(err){ console.error("Live config sync failed", err); });
+    }
+
     async function init(){
       await loadAll();
       renderHome();
@@ -1731,6 +1760,7 @@
           openEntry(qTable);
         }
       }
+      startLiveSync();
     }
     init();
   })();

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Rhino Snooker Club — Table Billing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -35,9 +35,12 @@
     --font-mono:'JetBrains Mono', monospace;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:transparent;color:var(--chalk);font-family:var(--font-body);}
+  html{background:#05070a;height:100%;}
+  body{margin:0;background:#05070a;color:var(--chalk);font-family:var(--font-body);min-height:100%;}
   .app{
     max-width:520px;margin:0 auto;position:relative;overflow:hidden;
+    min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;
     border-radius:var(--radius-lg);
     background:
       radial-gradient(120% 90% at 15% -10%, rgba(234,179,8,0.10), transparent 55%),
@@ -46,6 +49,9 @@
     border:1px solid rgba(234,179,8,0.22);
     box-shadow:var(--shadow-lg), inset 0 0 90px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
   }
+  @media (max-width:560px){
+    .app{ border-radius:0; border:none; box-shadow:none; }
+  }
   .app::before{
     content:"";position:absolute;inset:0;pointer-events:none;opacity:0.05;mix-blend-mode:overlay;
     background-image:radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px);
@@ -53,9 +59,10 @@
   }
   .topbar{
     display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;
-    padding:18px 20px;border-bottom:1px solid rgba(217,178,92,0.35);
-    background:linear-gradient(180deg, rgba(31,115,80,0.9), rgba(21,80,58,0.75));
+    padding:18px 20px;border-bottom:1px solid rgba(234,179,8,0.3);
+    background:linear-gradient(180deg, rgba(33,42,53,0.9), rgba(13,17,23,0.85));
     backdrop-filter:blur(6px);
+    flex-shrink:0;
   }
   .brand{display:flex;align-items:center;gap:11px;}
   .brand .dot{
@@ -72,7 +79,7 @@
   }
   .navbtn:hover{background:rgba(0,0,0,0.4);border-color:var(--brass);transform:translateY(-1px);}
   .navbtn:active{transform:translateY(0);}
-  .screen{padding:26px 20px 30px;position:relative;z-index:1;animation:fadeSlideIn .35s var(--ease);}
+  .screen{padding:26px 20px 30px;position:relative;z-index:1;animation:fadeSlideIn .35s var(--ease);flex:1 1 auto;overflow-y:auto;}
   .hidden{display:none !important;}
 
   @keyframes fadeSlideIn{
@@ -230,7 +237,7 @@
     animation:fadeSlideIn .25s var(--ease);
   }
   .err{color:#F5A99B;font-size:12px;margin-top:6px;}
-  .creator-note{font-family:var(--font-mono);font-size:10px;color:var(--chalk-dim);text-align:center;margin:8px 0 0;padding:4px;position:relative;z-index:1;}
+  .creator-note{font-family:var(--font-mono);font-size:10px;color:var(--chalk-dim);text-align:center;margin:8px 0 0;padding:4px;position:relative;z-index:1;flex-shrink:0;}
   .switch { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink:0; }
   .switch input { opacity: 0; width: 0; height: 0; }
   .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.15); transition: .25s var(--ease); border-radius: 26px; }
@@ -249,7 +256,7 @@
     padding:8px 4px calc(8px + env(safe-area-inset-bottom));
     background:linear-gradient(180deg, rgba(13,17,23,0.92), #05070a);
     border-top:1px solid rgba(255,255,255,0.08);
-    position:relative;z-index:2;
+    position:relative;z-index:2;flex-shrink:0;
   }
   .nav-item{
     display:flex;flex-direction:column;align-items:center;gap:3px;

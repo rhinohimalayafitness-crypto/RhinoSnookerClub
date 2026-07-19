@@ -286,6 +286,25 @@
   .donut-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
 
   .chart-bar{flex:1;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--brass-bright),var(--brass));min-height:3px;}
+
+  .upi-logo-badge{
+    width:28px;height:28px;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;
+    margin-right:10px;flex-shrink:0;padding:5px;box-shadow:0 1px 5px rgba(0,0,0,0.3);
+  }
+  .upi-logo-badge img{width:100%;height:100%;object-fit:contain;display:block;}
+
+  .hbar-row{margin-bottom:14px;}
+  .hbar-row:last-child{margin-bottom:0;}
+  .hbar-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font-size:12.5px;}
+  .hbar-top .tlabel{font-weight:600;color:var(--chalk);display:flex;align-items:center;gap:6px;}
+  .hbar-top .tval{font-family:var(--font-mono);color:var(--brass-bright);font-weight:700;}
+  .hbar-track{width:100%;height:10px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden;}
+  .hbar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--brass),var(--brass-bright));transition:width .3s var(--ease);}
+  .hbar-fill.c-blue{background:linear-gradient(90deg,var(--blue-ok),var(--blue-bright));}
+  .hbar-row.top .hbar-fill{background:linear-gradient(90deg,var(--red-ball),#ff8f7d);}
+  .crown-badge{font-size:11px;}
+
+  .settings-account-note{font-size:11px;color:var(--chalk-dim);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -295,7 +314,7 @@
 
   <div class="topbar">
     <div class="brand"><span class="dot"></span><h1>Rhino Snooker Club</h1></div>
-    <button class="navbtn" id="ownerToggleBtn">Owner ▸</button>
+    <button class="navbtn" id="ownerToggleBtn">Settings ▸</button>
   </div>
   <div class="creator-note">Made by Sumit Dhyani</div>
 
@@ -362,10 +381,10 @@
     <div class="hidden" id="upiIosOptions" style="margin-top:14px;">
       <p class="hint-note" style="margin:0 0 10px;">iPhone can't show an app picker for UPI links — tap your app directly:</p>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btn-outline btn-block" id="payGpayBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon gpay">G</span>Pay with Google Pay</button>
-        <button class="btn btn-outline btn-block" id="payPhonepeBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon phonepe">P</span>Pay with PhonePe</button>
-        <button class="btn btn-outline btn-block" id="payPaytmBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon paytm">Pt</span>Pay with Paytm</button>
-        <button class="btn btn-outline btn-block" id="payOtherUpiBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon other">B</span>Other UPI app (BHIM etc.)</button>
+        <button class="btn btn-outline btn-block" id="payGpayBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-logo-badge"><img src="https://cdn.simpleicons.org/googlepay" alt="Google Pay" onerror="this.parentElement.style.background='#4285F4';this.parentElement.textContent='G';this.parentElement.style.color='#fff';this.parentElement.style.fontWeight='700';"></span>Pay with Google Pay</button>
+        <button class="btn btn-outline btn-block" id="payPhonepeBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-logo-badge"><img src="https://cdn.simpleicons.org/phonepe" alt="PhonePe" onerror="this.parentElement.style.background='#5F259F';this.parentElement.textContent='P';this.parentElement.style.color='#fff';this.parentElement.style.fontWeight='700';"></span>Pay with PhonePe</button>
+        <button class="btn btn-outline btn-block" id="payPaytmBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-logo-badge"><img src="https://cdn.simpleicons.org/paytm" alt="Paytm" onerror="this.parentElement.style.background='#00BAF2';this.parentElement.textContent='Pt';this.parentElement.style.color='#fff';this.parentElement.style.fontWeight='700';"></span>Pay with Paytm</button>
+        <button class="btn btn-outline btn-block" id="payOtherUpiBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-logo-badge"><img src="https://cdn.simpleicons.org/unifiedpaymentsinterface" alt="UPI" onerror="this.parentElement.style.background='#FF8C00';this.parentElement.textContent='B';this.parentElement.style.color='#fff';this.parentElement.style.fontWeight='700';"></span>Other UPI app (BHIM etc.)</button>
       </div>
     </div>
     <button class="btn btn-brass btn-block" id="receiptDoneBtn" style="margin-top:12px;">New game</button>
@@ -385,15 +404,34 @@
     <button class="btn btn-brass btn-block" id="loginSubmitBtn" style="margin-top:20px;">Log in</button>
   </div>
 
-  <!-- OWNER -->
-  <div class="screen hidden" id="view-owner">
+  <!-- HISTORY -->
+  <div class="screen hidden" id="view-history">
     <div class="back-row">
-      <button class="navbtn" id="ownerBackBtn">◂ Back</button>
-      <button class="navbtn" id="logoutBtn" style="margin-left:auto;">Log out</button>
+      <button class="navbtn" id="historyBackBtn">◂ Back</button>
+      <button class="navbtn" id="historyLogoutBtn" style="margin-left:auto;">Log out</button>
     </div>
-    <h2 class="section-title">Owner dashboard</h2>
-    <p class="section-sub">Live sessions, rates, history and revenue.</p>
-    <p class="section-sub" id="loggedInAsLine" style="margin-top:-14px;"></p>
+    <h2 class="section-title">History</h2>
+    <p class="section-sub">Live tables and past games.</p>
+
+    <h4 class="subhead">Active now</h4>
+    <div id="activeList"></div>
+
+    <h4 class="subhead">Recent games</h4>
+    <div id="historyList"></div>
+
+    <h4 class="subhead">Kick Out</h4>
+    <p class="section-sub">Forcefully end a table's session right now. It'll be billed for time played and added to Recent games.</p>
+    <div id="kickOutList"></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div class="screen hidden" id="view-reports">
+    <div class="back-row">
+      <button class="navbtn" id="reportsBackBtn">◂ Back</button>
+      <button class="navbtn" id="reportsLogoutBtn" style="margin-left:auto;">Log out</button>
+    </div>
+    <h2 class="section-title">Reports</h2>
+    <p class="section-sub">Revenue, table popularity and occupancy.</p>
 
     <h4 class="subhead">Revenue report</h4>
     <div class="date-range-row">
@@ -405,7 +443,7 @@
     <p class="hint-note" style="margin:4px 0 14px;text-align:left;" id="reportRangeCaption"></p>
 
     <div class="stat-grid">
-      <div class="stat-card c-green"><div class="lbl" id="statTodayLabel">Revenue</div><div class="val" id="statToday">₹0</div></div>
+      <div class="stat-card c-green"><div class="lbl" id="statTodayLabel">Revenue today</div><div class="val" id="statToday">₹0</div></div>
       <div class="stat-card c-blue"><div class="lbl" id="statCountLabel">Games</div><div class="val" id="statCount">0</div></div>
       <div class="stat-card c-red"><div class="lbl">Running tables</div><div class="val" id="statRunning">0</div></div>
       <div class="stat-card c-yellow"><div class="lbl">Occupancy</div><div class="val" id="statOccupancy">0%</div></div>
@@ -417,11 +455,30 @@
 
     <button class="btn btn-brass btn-block" id="exportPdfBtn" style="margin:14px 0 22px;">📄 Export to PDF</button>
 
+    <h4 class="subhead">Table popularity</h4>
+    <p class="hint-note" style="margin:0 0 12px;text-align:left;">Which table gets played the most, for the selected range.</p>
+    <div id="tablePopularityChart"></div>
+
+    <h4 class="subhead">Revenue by table</h4>
+    <p class="hint-note" style="margin:0 0 12px;text-align:left;">Revenue generated by each table, for the selected range.</p>
+    <div id="tableRevenueChart" style="margin-bottom:6px;"></div>
+
     <h4 class="subhead">Table status</h4>
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:6px;">
       <div id="statusDonut" style="width:76px;height:76px;border-radius:50%;flex-shrink:0;"></div>
       <div style="flex:1;display:flex;flex-direction:column;gap:6px;" id="statusLegend"></div>
     </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen hidden" id="view-settings">
+    <div class="back-row">
+      <button class="navbtn" id="settingsBackBtn">◂ Back</button>
+      <button class="navbtn" id="settingsLogoutBtn" style="margin-left:auto;">Log out</button>
+    </div>
+    <h2 class="section-title">Settings</h2>
+    <p class="section-sub">Rates, payments, tables, accounts and controls.</p>
+    <p class="section-sub" id="loggedInAsLine" style="margin-top:-14px;"></p>
 
     <h4 class="subhead">Payments</h4>
     <p class="section-sub">UPI ID customers pay to when they tap "Pay via UPI" on their receipt.</p>
@@ -471,16 +528,6 @@
     <p class="hint-note admin-only-note hidden" id="ratesAdminNote" style="margin:0 0 10px;text-align:left;">🔒 Only the admin can change rates.</p>
     <div id="rateEditor"></div>
     <button class="btn btn-outline" id="saveRatesBtn">Save rates</button>
-
-    <h4 class="subhead">Active now</h4>
-    <div id="activeList"></div>
-
-    <h4 class="subhead">Recent games</h4>
-    <div id="historyList"></div>
-
-    <h4 class="subhead">Kick Out</h4>
-    <p class="section-sub">Forcefully end a table's session right now. It'll be billed for time played and added to Recent games.</p>
-    <div id="kickOutList"></div>
 
     <h4 class="subhead">Your password</h4>
     <p class="section-sub">Change the password for your own account (<span id="myUsernameLabel"></span>).</p>
@@ -532,9 +579,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
       <span>Reports</span>
     </button>
-    <button class="nav-item" id="navOwnerBtn" data-nav="owner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span>Owner</span>
+    <button class="nav-item" id="navSettingsBtn" data-nav="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
     </button>
   </div>
 </div>
@@ -658,33 +705,39 @@
 
     function show(id){
       if(id !== "view-board" && boardTickHandle){ clearInterval(boardTickHandle); boardTickHandle = null; }
-      ["view-home","view-entry","view-active","view-receipt","view-login","view-owner","view-board"].forEach(function(v){
+      ["view-home","view-entry","view-active","view-receipt","view-login","view-history","view-reports","view-settings","view-board"].forEach(function(v){
         $(v).classList.toggle("hidden", v !== id);
       });
     }
 
-    var pendingOwnerScroll = null;
+    var pendingArea = null; // "history" | "reports" | "settings" — where to land after login
     function setActiveNav(key){
-      ["navHomeBtn","navTablesBtn","navHistoryBtn","navReportsBtn","navOwnerBtn"].forEach(function(id){
+      ["navHomeBtn","navTablesBtn","navHistoryBtn","navReportsBtn","navSettingsBtn"].forEach(function(id){
         var el = $(id);
         if(el) el.classList.toggle("active", el.getAttribute("data-nav") === key);
       });
     }
-    function goToOwnerArea(navKey, scrollSelector){
-      setActiveNav(navKey);
+    function areaViewId(area){
+      return area === "history" ? "view-history" : area === "reports" ? "view-reports" : "view-settings";
+    }
+    function renderArea(area){
+      if(area === "history") renderHistoryArea();
+      else if(area === "reports") renderReportsArea();
+      else renderSettingsArea();
+    }
+    function openArea(area){
+      setActiveNav(area);
+      markLastArea(area);
+      renderArea(area);
+      show(areaViewId(area));
+      if(area === "history") startOwnerPoll(); else stopOwnerPoll();
+    }
+    function goToArea(area){
+      setActiveNav(area);
       if(isOwnerAuthed){
-        markLastArea("owner");
-        renderOwner();
-        show("view-owner");
-        startOwnerPoll();
-        if(scrollSelector){
-          setTimeout(function(){
-            var el = document.querySelector(scrollSelector);
-            if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-          }, 60);
-        }
+        openArea(area);
       } else {
-        pendingOwnerScroll = scrollSelector || null;
+        pendingArea = area;
         openLogin();
       }
     }
@@ -1171,7 +1224,7 @@
       await saveSessions();
       await saveHistory();
       await logChange("Force-ended session", displayName + " · " + sess.name + " · " + fmtMoney(amount));
-      renderOwner();
+      refreshVisibleScreens();
       toast("Session on " + displayName + " forcefully ended.");
       if(currentTable === t){
         show("view-home");
@@ -1288,15 +1341,24 @@
       return ds >= activeRangeFrom() && ds <= activeRangeTo();
     }
 
-    function renderOwner(){
-      setActiveNav("owner");
+    // HISTORY tab — live sessions + past games + kick out
+    function renderHistoryArea(){
+      setActiveNav("history");
+      renderActiveList();
+      renderHistoryList();
+      renderKickOutList();
+    }
+
+    // REPORTS tab — revenue, table popularity, table status
+    function renderReportsArea(){
+      setActiveNav("reports");
 
       var fromDateEl = $("reportFromDate"), toDateEl = $("reportToDate");
       if(fromDateEl && !fromDateEl.value) fromDateEl.value = activeRangeFrom();
       if(toDateEl && !toDateEl.value) toDateEl.value = activeRangeTo();
       var captionEl = $("reportRangeCaption");
+      var from = activeRangeFrom(), to = activeRangeTo();
       if(captionEl){
-        var from = activeRangeFrom(), to = activeRangeTo();
         captionEl.textContent = (from === to)
           ? "Showing " + fmtDateNice(from)
           : "Showing " + fmtDateNice(from) + " – " + fmtDateNice(to);
@@ -1306,6 +1368,8 @@
       var revenue = todays.reduce(function(s,h){ return s + h.amount; }, 0);
       $("statToday").textContent = fmtMoney(revenue);
       $("statCount").textContent = todays.length;
+      var statTodayLabel = $("statTodayLabel");
+      if(statTodayLabel) statTodayLabel.textContent = (from === to && from === todayStr()) ? "Revenue today" : "Revenue";
 
       var runningCount = TABLES.filter(function(t){ return !!state.sessions[t]; }).length;
       var freeCount = TABLES.length - runningCount;
@@ -1329,6 +1393,72 @@
         });
       }
 
+      // Table popularity — games played per table, and revenue per table
+      var perTable = {};
+      TABLES.forEach(function(t){ perTable[t] = { games: 0, revenue: 0 }; });
+      todays.forEach(function(h){
+        if(!perTable[h.table]) perTable[h.table] = { games: 0, revenue: 0 };
+        perTable[h.table].games += 1;
+        perTable[h.table].revenue += h.amount;
+      });
+
+      var popHost = $("tablePopularityChart");
+      if(popHost){
+        popHost.innerHTML = "";
+        var maxGames = Math.max.apply(null, TABLES.map(function(t){ return perTable[t].games; }).concat([1]));
+        var mostPlayedT = null, mostPlayedGames = -1;
+        TABLES.forEach(function(t){
+          if(perTable[t].games > mostPlayedGames){ mostPlayedGames = perTable[t].games; mostPlayedT = t; }
+        });
+        TABLES.forEach(function(t){
+          var displayName = state.tableNames[t] || ("Table " + t);
+          var games = perTable[t].games;
+          var isTop = (t === mostPlayedT && games > 0);
+          var pct = games > 0 ? Math.max(4, Math.round((games / maxGames) * 100)) : 0;
+          var row = document.createElement("div");
+          row.className = "hbar-row" + (isTop ? " top" : "");
+          row.innerHTML =
+            '<div class="hbar-top">' +
+              '<span class="tlabel">' + displayName + (isTop ? ' <span class="crown-badge">👑</span>' : '') + '</span>' +
+              '<span class="tval">' + games + ' game' + (games === 1 ? "" : "s") + '</span>' +
+            '</div>' +
+            '<div class="hbar-track"><div class="hbar-fill" style="width:' + pct + '%;"></div></div>';
+          popHost.appendChild(row);
+        });
+        if(!todays.length){
+          var emptyPop = document.createElement("div");
+          emptyPop.className = "empty-note";
+          emptyPop.textContent = "No games in this range yet.";
+          popHost.appendChild(emptyPop);
+        }
+      }
+
+      var revHost = $("tableRevenueChart");
+      if(revHost){
+        revHost.innerHTML = "";
+        var maxRev = Math.max.apply(null, TABLES.map(function(t){ return perTable[t].revenue; }).concat([1]));
+        TABLES.forEach(function(t){
+          var displayName = state.tableNames[t] || ("Table " + t);
+          var amt = perTable[t].revenue;
+          var pct = amt > 0 ? Math.max(4, Math.round((amt / maxRev) * 100)) : 0;
+          var row = document.createElement("div");
+          row.className = "hbar-row";
+          row.innerHTML =
+            '<div class="hbar-top">' +
+              '<span class="tlabel">' + displayName + '</span>' +
+              '<span class="tval">' + fmtMoney(amt) + '</span>' +
+            '</div>' +
+            '<div class="hbar-track"><div class="hbar-fill c-blue" style="width:' + pct + '%;"></div></div>';
+          revHost.appendChild(row);
+        });
+        if(!todays.length){
+          var emptyRev = document.createElement("div");
+          emptyRev.className = "empty-note";
+          emptyRev.textContent = "No revenue in this range yet.";
+          revHost.appendChild(emptyRev);
+        }
+      }
+
       var donut = $("statusDonut");
       if(donut){
         var runPct = TABLES.length ? (runningCount / TABLES.length * 100) : 0;
@@ -1340,6 +1470,11 @@
           '<div class="donut-legend-item"><span class="donut-dot" style="background:var(--red-ball);"></span>Running ' + runningCount + ' (' + Math.round(occupancyPct) + '%)</div>' +
           '<div class="donut-legend-item"><span class="donut-dot" style="background:#2A3441;"></span>Available ' + freeCount + ' (' + (100 - Math.round(occupancyPct)) + '%)</div>';
       }
+    }
+
+    // SETTINGS tab — payments, tables, rates, controls, accounts, QR codes
+    function renderSettingsArea(){
+      setActiveNav("settings");
 
       var isAdmin = !!(currentUser && currentUser.role === "admin");
       var loggedLine = $("loggedInAsLine");
@@ -1395,10 +1530,6 @@
 
       var reminderIntervalInput = $("reminderIntervalInput");
       if(reminderIntervalInput) reminderIntervalInput.value = state.reminderIntervalMinutes || DEFAULT_REMINDER_INTERVAL_MINUTES;
-
-      renderActiveList();
-      renderHistoryList();
-      renderKickOutList();
 
       var qg = $("qrGrid");
       qg.innerHTML = "";
@@ -1646,7 +1777,7 @@
       });
       await saveConfig();
       await logChange("Updated rates", TABLES.map(function(t){ return (state.tableNames[t]||("Table "+t)) + ": " + fmtMoney(state.rates[t]) + "/min"; }).join(", "));
-      renderOwner();
+      refreshVisibleScreens();
       renderHome();
       toast("Rates saved.");
     }
@@ -1662,7 +1793,7 @@
       });
       await saveConfig();
       await logChange("Renamed tables", TABLES.map(function(t){ return t + " → " + state.tableNames[t]; }).join(", "));
-      renderOwner();
+      refreshVisibleScreens();
       renderHome();
       toast("Table names saved.");
     }
@@ -1682,19 +1813,10 @@
         isOwnerAuthed = true;
         currentUser = { username: username, role: acct.role };
         saveOwnerSession(username, acct.role);
-        markLastArea("owner");
-        renderOwner();
-        show("view-owner");
-        startOwnerPoll();
+        var area = pendingArea || "settings";
+        pendingArea = null;
+        openArea(area);
         toast("Login successful!");
-        if(pendingOwnerScroll){
-          var target = pendingOwnerScroll;
-          pendingOwnerScroll = null;
-          setTimeout(function(){
-            var el = document.querySelector(target);
-            if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-          }, 60);
-        }
       } else {
         $("loginErr").textContent = "Wrong username or password.";
         $("loginErr").classList.remove("hidden");
@@ -1703,8 +1825,7 @@
 
     // Nav wiring
     $("ownerToggleBtn").addEventListener("click", function(){
-      if(isOwnerAuthed){ setActiveNav("owner"); markLastArea("owner"); renderOwner(); show("view-owner"); startOwnerPoll(); }
-      else { setActiveNav("owner"); openLogin(); }
+      goToArea("settings");
     });
 
     $("navHomeBtn").addEventListener("click", function(){
@@ -1719,13 +1840,13 @@
       openBoard();
     });
     $("navHistoryBtn").addEventListener("click", function(){
-      goToOwnerArea("history", "#historyList");
+      goToArea("history");
     });
     $("navReportsBtn").addEventListener("click", function(){
-      goToOwnerArea("reports", ".stat-grid");
+      goToArea("reports");
     });
-    $("navOwnerBtn").addEventListener("click", function(){
-      goToOwnerArea("owner", null);
+    $("navSettingsBtn").addEventListener("click", function(){
+      goToArea("settings");
     });
 
     $("loginSubmitBtn").addEventListener("click", attemptLogin);
@@ -1747,7 +1868,7 @@
       if(fromVal > toVal){ toast("Start date must be before end date."); return; }
       reportRange.from = fromVal;
       reportRange.to = toVal;
-      renderOwner();
+      renderReportsArea();
     });
     $("exportPdfBtn").addEventListener("click", exportReportPdf);
     $("saveTableNamesBtn").addEventListener("click", saveTableNames);
@@ -1805,26 +1926,30 @@
     });
 
     $("loginBackBtn").addEventListener("click", function(){
-      pendingOwnerScroll = null;
+      pendingArea = null;
       show("view-home");
       renderHome();
     });
 
-    $("ownerBackBtn").addEventListener("click", function(){
-      stopOwnerPoll();
-      markLastArea("home");
-      show("view-home");
-      renderHome();
+    ["historyBackBtn","reportsBackBtn","settingsBackBtn"].forEach(function(id){
+      $(id).addEventListener("click", function(){
+        stopOwnerPoll();
+        markLastArea("home");
+        show("view-home");
+        renderHome();
+      });
     });
 
-    $("logoutBtn").addEventListener("click", function(){
-      stopOwnerPoll();
-      isOwnerAuthed = false;
-      currentUser = null;
-      clearOwnerSession();
-      show("view-home");
-      renderHome();
-      toast("Logged out.");
+    ["historyLogoutBtn","reportsLogoutBtn","settingsLogoutBtn"].forEach(function(id){
+      $(id).addEventListener("click", function(){
+        stopOwnerPoll();
+        isOwnerAuthed = false;
+        currentUser = null;
+        clearOwnerSession();
+        show("view-home");
+        renderHome();
+        toast("Logged out.");
+      });
     });
 
     $("receiptDoneBtn").addEventListener("click", function(){
@@ -1863,7 +1988,9 @@
     function refreshVisibleScreens(){
       if(!$("view-home").classList.contains("hidden")) renderHome();
       if(!$("view-board").classList.contains("hidden")) renderBoard();
-      if(!$("view-owner").classList.contains("hidden")) renderOwner();
+      if(!$("view-history").classList.contains("hidden")) renderHistoryArea();
+      if(!$("view-reports").classList.contains("hidden")) renderReportsArea();
+      if(!$("view-settings").classList.contains("hidden")) renderSettingsArea();
       // view-active reads state.sessions on its own 1-second tick, so it
       // picks up remote changes automatically without needing a re-render here.
     }
@@ -1895,11 +2022,8 @@
       var lastArea = null;
       try { lastArea = localStorage.getItem(LAST_AREA_KEY); } catch(e){ lastArea = null; }
 
-      if(wasOwnerAuthed && lastArea === "owner"){
-        setActiveNav("owner");
-        renderOwner();
-        show("view-owner");
-        startOwnerPoll();
+      if(wasOwnerAuthed && ["history","reports","settings"].indexOf(lastArea) !== -1){
+        openArea(lastArea);
       } else {
         renderHome();
         var params = new URLSearchParams(location.search);

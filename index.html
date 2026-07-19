@@ -546,6 +546,8 @@
     var DEFAULT_MAX_PAUSE_MINUTES = 2;
     var DEFAULT_REMINDER_INTERVAL_MINUTES = 60;
     var DEFAULT_ADMIN_USERNAME = "admin";
+    var SESSION_KEY = "rhino_owner_session";
+    var LAST_AREA_KEY = "rhino_last_area";
 
     var state = {
       rates: DEFAULT_RATES,
@@ -570,6 +572,26 @@
     var boardTickHandle = null;
     var isOwnerAuthed = false;
     var currentUser = null;
+
+    function saveOwnerSession(username, role){
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify({ username: username, role: role })); } catch(e){}
+    }
+    function clearOwnerSession(){
+      try { localStorage.removeItem(SESSION_KEY); localStorage.removeItem(LAST_AREA_KEY); } catch(e){}
+    }
+    function markLastArea(area){
+      try { localStorage.setItem(LAST_AREA_KEY, area); } catch(e){}
+    }
+    function restoreOwnerSession(){
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch(e){ saved = null; }
+      if(!saved || !saved.username) return false;
+      var acct = state.accounts[saved.username];
+      if(!acct){ clearOwnerSession(); return false; }
+      isOwnerAuthed = true;
+      currentUser = { username: saved.username, role: acct.role };
+      return true;
+    }
     var notifiedHours = {};
     var audioCtx = null;
 
@@ -634,6 +656,7 @@
     function goToOwnerArea(navKey, scrollSelector){
       setActiveNav(navKey);
       if(isOwnerAuthed){
+        markLastArea("owner");
         renderOwner();
         show("view-owner");
         startOwnerPoll();
@@ -1555,6 +1578,8 @@
       if(acct && acct.password === entered){
         isOwnerAuthed = true;
         currentUser = { username: username, role: acct.role };
+        saveOwnerSession(username, acct.role);
+        markLastArea("owner");
         renderOwner();
         show("view-owner");
         startOwnerPoll();
@@ -1575,13 +1600,14 @@
 
     // Nav wiring
     $("ownerToggleBtn").addEventListener("click", function(){
-      if(isOwnerAuthed){ setActiveNav("owner"); renderOwner(); show("view-owner"); startOwnerPoll(); }
+      if(isOwnerAuthed){ setActiveNav("owner"); markLastArea("owner"); renderOwner(); show("view-owner"); startOwnerPoll(); }
       else { setActiveNav("owner"); openLogin(); }
     });
 
     $("navHomeBtn").addEventListener("click", function(){
       if(tickHandle){ clearInterval(tickHandle); tickHandle = null; }
       stopOwnerPoll();
+      markLastArea("home");
       show("view-home");
       renderHome();
     });
@@ -1673,6 +1699,7 @@
 
     $("ownerBackBtn").addEventListener("click", function(){
       stopOwnerPoll();
+      markLastArea("home");
       show("view-home");
       renderHome();
     });
@@ -1681,6 +1708,7 @@
       stopOwnerPoll();
       isOwnerAuthed = false;
       currentUser = null;
+      clearOwnerSession();
       show("view-home");
       renderHome();
       toast("Logged out.");
@@ -1750,14 +1778,25 @@
 
     async function init(){
       await loadAll();
-      renderHome();
-      var params = new URLSearchParams(location.search);
-      var qTable = params.get("table");
-      if(qTable && TABLES.indexOf(qTable) !== -1){
-        if(state.sessions[qTable]){
-          openActive(qTable);
-        } else {
-          openEntry(qTable);
+      var wasOwnerAuthed = restoreOwnerSession();
+      var lastArea = null;
+      try { lastArea = localStorage.getItem(LAST_AREA_KEY); } catch(e){ lastArea = null; }
+
+      if(wasOwnerAuthed && lastArea === "owner"){
+        setActiveNav("owner");
+        renderOwner();
+        show("view-owner");
+        startOwnerPoll();
+      } else {
+        renderHome();
+        var params = new URLSearchParams(location.search);
+        var qTable = params.get("table");
+        if(qTable && TABLES.indexOf(qTable) !== -1){
+          if(state.sessions[qTable]){
+            openActive(qTable);
+          } else {
+            openEntry(qTable);
+          }
         }
       }
       startLiveSync();

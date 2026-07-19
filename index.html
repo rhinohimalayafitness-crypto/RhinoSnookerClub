@@ -148,13 +148,17 @@
   .btn-block{width:100%;}
 
   label.field-label{display:block;font-size:12px;color:var(--chalk-dim);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.5px;}
-  input[type=text], input[type=tel], input[type=number]{
+  input[type=text], input[type=tel], input[type=number], input[type=date]{
     width:100%;padding:12px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);
-    background:rgba(0,0,0,0.25);color:var(--chalk);font-family:var(--font-body);font-size:15px;
+    background:rgba(0,0,0,0.25);color:var(--chalk);font-family:var(--font-body);font-size:14px;
     transition:border-color .15s var(--ease), box-shadow .15s var(--ease);
+    color-scheme:dark;
   }
   input::placeholder{color:var(--chalk-dim);opacity:0.55;}
   input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(217,178,92,0.18);}
+  .date-range-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .date-range-row input[type=date]{flex:1;min-width:0;}
+  .date-range-row .btn{flex-shrink:0;white-space:nowrap;}
 
   .back-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
   .back-row .navbtn{padding:7px 11px;}
@@ -283,6 +287,8 @@
 
   .chart-bar{flex:1;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--brass-bright),var(--brass));min-height:3px;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -389,16 +395,27 @@
     <p class="section-sub">Live sessions, rates, history and revenue.</p>
     <p class="section-sub" id="loggedInAsLine" style="margin-top:-14px;"></p>
 
+    <h4 class="subhead">Revenue report</h4>
+    <div class="date-range-row">
+      <input type="date" id="reportFromDate">
+      <span style="color:var(--chalk-dim);font-size:12px;">to</span>
+      <input type="date" id="reportToDate">
+      <button class="btn btn-outline" id="applyReportRangeBtn">Apply</button>
+    </div>
+    <p class="hint-note" style="margin:4px 0 14px;text-align:left;" id="reportRangeCaption"></p>
+
     <div class="stat-grid">
-      <div class="stat-card c-green"><div class="lbl">Today's revenue</div><div class="val" id="statToday">₹0</div></div>
-      <div class="stat-card c-blue"><div class="lbl">Games today</div><div class="val" id="statCount">0</div></div>
+      <div class="stat-card c-green"><div class="lbl" id="statTodayLabel">Revenue</div><div class="val" id="statToday">₹0</div></div>
+      <div class="stat-card c-blue"><div class="lbl" id="statCountLabel">Games</div><div class="val" id="statCount">0</div></div>
       <div class="stat-card c-red"><div class="lbl">Running tables</div><div class="val" id="statRunning">0</div></div>
       <div class="stat-card c-yellow"><div class="lbl">Occupancy</div><div class="val" id="statOccupancy">0%</div></div>
     </div>
 
-    <h4 class="subhead">Revenue today</h4>
+    <h4 class="subhead">Revenue chart</h4>
     <div id="revenueChart" style="display:flex;align-items:flex-end;gap:2px;height:70px;margin-bottom:4px;"></div>
-    <p class="hint-note" style="margin-top:0;text-align:left;">Hourly revenue for today, 12 AM – 11 PM.</p>
+    <p class="hint-note" style="margin-top:0;text-align:left;">Hourly revenue for the selected range, 12 AM – 11 PM.</p>
+
+    <button class="btn btn-brass btn-block" id="exportPdfBtn" style="margin:14px 0 22px;">📄 Export to PDF</button>
 
     <h4 class="subhead">Table status</h4>
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">
@@ -1250,9 +1267,42 @@
       return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
     }
 
+    function todayStr(){
+      var d = new Date();
+      return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+    }
+    function dateStrOf(ts){
+      var d = new Date(ts);
+      return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+    }
+    function fmtDateNice(dateStr){
+      var parts = dateStr.split("-");
+      var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    }
+    var reportRange = { from: null, to: null };
+    function activeRangeFrom(){ return reportRange.from || todayStr(); }
+    function activeRangeTo(){ return reportRange.to || todayStr(); }
+    function inSelectedRange(ts){
+      var ds = dateStrOf(ts);
+      return ds >= activeRangeFrom() && ds <= activeRangeTo();
+    }
+
     function renderOwner(){
       setActiveNav("owner");
-      var todays = state.history.filter(function(h){ return isToday(h.endTime); });
+
+      var fromDateEl = $("reportFromDate"), toDateEl = $("reportToDate");
+      if(fromDateEl && !fromDateEl.value) fromDateEl.value = activeRangeFrom();
+      if(toDateEl && !toDateEl.value) toDateEl.value = activeRangeTo();
+      var captionEl = $("reportRangeCaption");
+      if(captionEl){
+        var from = activeRangeFrom(), to = activeRangeTo();
+        captionEl.textContent = (from === to)
+          ? "Showing " + fmtDateNice(from)
+          : "Showing " + fmtDateNice(from) + " – " + fmtDateNice(to);
+      }
+
+      var todays = state.history.filter(function(h){ return inSelectedRange(h.endTime); });
       var revenue = todays.reduce(function(s,h){ return s + h.amount; }, 0);
       $("statToday").textContent = fmtMoney(revenue);
       $("statCount").textContent = todays.length;
@@ -1535,6 +1585,59 @@
       toast("Supervisor account removed.");
     }
 
+    function exportReportPdf(){
+      if(!window.jspdf || !window.jspdf.jsPDF){
+        toast("PDF library still loading — try again in a moment.");
+        return;
+      }
+      var rows = state.history
+        .filter(function(h){ return inSelectedRange(h.endTime); })
+        .sort(function(a,b){ return a.endTime - b.endTime; });
+
+      if(rows.length === 0){
+        toast("No games found in that date range.");
+        return;
+      }
+
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF();
+      var from = activeRangeFrom(), to = activeRangeTo();
+
+      doc.setFontSize(16);
+      doc.text("Rhino Snooker Club — Revenue Report", 14, 18);
+      doc.setFontSize(10);
+      doc.setTextColor(90);
+      doc.text("Period: " + fmtDateNice(from) + (from !== to ? "  to  " + fmtDateNice(to) : ""), 14, 25);
+      doc.text("Generated: " + new Date().toLocaleString("en-IN"), 14, 30);
+
+      var body = rows.map(function(h){
+        var d = new Date(h.endTime);
+        var displayName = state.tableNames[h.table] || ("Table " + h.table);
+        return [
+          d.toLocaleDateString("en-IN"),
+          d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+          displayName,
+          h.name || "-",
+          h.phone || "-",
+          h.minutes + " min",
+          "Rs " + Math.round(h.amount)
+        ];
+      });
+      var total = rows.reduce(function(s, h){ return s + h.amount; }, 0);
+
+      doc.autoTable({
+        startY: 36,
+        head: [["Date", "Time", "Table", "Customer", "Phone", "Duration", "Amount"]],
+        body: body,
+        foot: [["", "", "", "", "", "Total", "Rs " + Math.round(total)]],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [234, 179, 8], textColor: [20, 20, 20] },
+        footStyles: { fillColor: [30, 35, 45], textColor: [255, 255, 255], fontStyle: "bold" }
+      });
+
+      doc.save("rhino-snooker-revenue_" + from + "_to_" + to + ".pdf");
+    }
+
     async function saveRates(){
       if(!currentUser || currentUser.role !== "admin"){ toast("Only the admin can change rates."); return; }
       TABLES.forEach(function(t){
@@ -1637,6 +1740,16 @@
     $("payPaytmBtn").addEventListener("click", function(){ payViaUpi("paytm"); });
     $("payOtherUpiBtn").addEventListener("click", function(){ payViaUpi(); });
     $("saveRatesBtn").addEventListener("click", saveRates);
+    $("applyReportRangeBtn").addEventListener("click", function(){
+      var fromVal = $("reportFromDate").value;
+      var toVal = $("reportToDate").value;
+      if(!fromVal || !toVal){ toast("Pick both a start and end date."); return; }
+      if(fromVal > toVal){ toast("Start date must be before end date."); return; }
+      reportRange.from = fromVal;
+      reportRange.to = toVal;
+      renderOwner();
+    });
+    $("exportPdfBtn").addEventListener("click", exportReportPdf);
     $("saveTableNamesBtn").addEventListener("click", saveTableNames);
     $("allowEndToggle").addEventListener("change", async function(){
       state.allowCustomerEnd = this.checked;

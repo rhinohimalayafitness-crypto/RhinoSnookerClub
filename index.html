@@ -305,6 +305,84 @@
   .crown-badge{font-size:11px;}
 
   .settings-account-note{font-size:11px;color:var(--chalk-dim);}
+  #printSignsArea{ display:none; }
+
+  @media print {
+    .app{ max-width:none !important; height:auto !important; overflow:visible !important; background:none !important; border:none !important; box-shadow:none !important; }
+    .app > *:not(#printSignsArea){ display:none !important; }
+    #printSignsArea{ display:block !important; }
+    @page { margin: 0; }
+  }
+
+  .sign-page{
+    width:100%;
+    min-height:100vh;
+    box-sizing:border-box;
+    padding:70px 50px;
+    background:#fff;
+    color:var(--felt-dark);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    page-break-after:always;
+    border:14px solid var(--felt-dark);
+    outline:4px solid var(--brass);
+    outline-offset:-22px;
+  }
+  .sign-page:last-child{ page-break-after:auto; }
+  .sign-club{
+    font-family:var(--font-display);
+    letter-spacing:3px;
+    font-size:24px;
+    color:var(--brass);
+    background:var(--felt-dark);
+    padding:12px 30px;
+    border-radius:8px;
+    margin-bottom:36px;
+  }
+  .sign-tablename{
+    font-family:var(--font-display);
+    font-size:96px;
+    line-height:1;
+    letter-spacing:1px;
+    color:var(--felt-dark);
+    margin:0 0 26px;
+  }
+  .sign-qr-box{
+    background:#fff;
+    border:6px solid var(--felt-dark);
+    border-radius:18px;
+    padding:18px;
+    margin-bottom:28px;
+  }
+  .sign-qr-box img{ display:block; width:280px; height:280px; }
+  .sign-instruction{
+    font-family:var(--font-body);
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--felt-dark);
+    margin-bottom:14px;
+  }
+  .sign-rate{
+    font-family:var(--font-mono);
+    font-size:32px;
+    font-weight:700;
+    color:#92720A;
+    background:#FEF3C7;
+    padding:10px 28px;
+    border-radius:999px;
+    margin-bottom:36px;
+  }
+  .sign-footer{
+    font-family:var(--font-body);
+    font-size:13px;
+    color:#555;
+    letter-spacing:0.5px;
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -569,7 +647,10 @@
     <h4 class="subhead">Table QR codes</h4>
     <p class="section-sub">Print these and stick one on each table. Scanning opens this app directly on that table's entry screen (once hosted at a public URL).</p>
     <div class="qr-grid" id="qrGrid"></div>
+    <button class="btn btn-brass btn-block" id="printSignsBtn" style="margin-top:16px;">🖨 Print table signs</button>
   </div>
+
+  <div id="printSignsArea"></div>
 
   <div id="toastHost"></div>
 
@@ -1106,7 +1187,7 @@
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
       $("activeTitle").textContent = displayName;
-      var canSeePhone = ownsCurrentSession(t) || !!currentUser;
+      var canSeePhone = ownsCurrentSession(t);
       $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b>" + (canSeePhone ? (" · " + sess.phone) : "") + " · started " + fmtTime(sess.startTime);
       show("view-active");
       tickActive();
@@ -1577,6 +1658,48 @@
       });
     }
 
+    function renderPrintSigns(){
+      var host = $("printSignsArea");
+      if(!host) return;
+      host.innerHTML = "";
+      TABLES.forEach(function(t){
+        var displayName = state.tableNames[t] || ("Table " + t);
+        var url = location.href.split("?")[0] + "?table=" + t;
+        var qrImg = "https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=" + encodeURIComponent(url);
+        var rate = state.rates[t];
+        var page = document.createElement("div");
+        page.className = "sign-page";
+        page.innerHTML =
+          '<div class="sign-club">🎱 RHINO SNOOKER CLUB</div>' +
+          '<div class="sign-tablename">' + displayName + '</div>' +
+          '<div class="sign-qr-box"><img src="' + qrImg + '" alt="Scan to start"></div>' +
+          '<div class="sign-instruction">Scan to start your game</div>' +
+          '<div class="sign-rate">' + fmtMoney(rate) + ' / min</div>' +
+          '<div class="sign-footer">Point your phone camera at the code above · Ask staff if you need help</div>';
+        host.appendChild(page);
+      });
+    }
+
+    function printTableSigns(){
+      renderPrintSigns();
+      var imgs = Array.prototype.slice.call($("printSignsArea").querySelectorAll("img"));
+      var pending = imgs.filter(function(img){ return !img.complete; });
+      if(!pending.length){ window.print(); return; }
+      var done = 0;
+      var fallback = setTimeout(function(){ window.print(); }, 4000);
+      pending.forEach(function(img){
+        img.addEventListener("load", onOne);
+        img.addEventListener("error", onOne);
+      });
+      function onOne(){
+        done++;
+        if(done >= pending.length){
+          clearTimeout(fallback);
+          window.print();
+        }
+      }
+    }
+
     function renderActiveList(){
       var host = $("activeList");
       if(!host) return;
@@ -1905,6 +2028,7 @@
     });
     $("exportPdfBtn").addEventListener("click", exportReportPdf);
     $("saveTableNamesBtn").addEventListener("click", saveTableNames);
+    $("printSignsBtn").addEventListener("click", printTableSigns);
     $("allowEndToggle").addEventListener("change", async function(){
       state.allowCustomerEnd = this.checked;
       await saveConfig();

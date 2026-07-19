@@ -8,21 +8,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --felt-dark:#0A2A1D;
-    --felt:#15503A;
-    --felt-light:#1F7350;
-    --felt-glow:#2A8F63;
-    --chalk:#F6F2E7;
-    --chalk-dim:#CDC6B0;
-    --brass:#D9B25C;
-    --brass-bright:#F0CD7C;
-    --brass-dim:#9C7F3E;
-    --red-ball:#C63B2E;
-    --yellow-ball:#E8B93A;
-    --ink:#081810;
-    --shadow-lg:0 20px 50px rgba(0,0,0,0.45);
-    --shadow-md:0 8px 22px rgba(0,0,0,0.3);
-    --shadow-sm:0 3px 8px rgba(0,0,0,0.22);
+    --felt-dark:#0D1117;
+    --felt:#161B22;
+    --felt-light:#212A35;
+    --felt-glow:#EAB308;
+    --chalk:#F0F6FC;
+    --chalk-dim:#8B949E;
+    --brass:#EAB308;
+    --brass-bright:#FACC15;
+    --brass-dim:rgba(234,179,8,0.35);
+    --red-ball:#EF4444;
+    --yellow-ball:#EAB308;
+    --green-ok:#22C55E;
+    --green-bright:#4ADE80;
+    --blue-ok:#3B82F6;
+    --blue-bright:#60A5FA;
+    --ink:#05070A;
+    --shadow-lg:0 20px 50px rgba(0,0,0,0.55);
+    --shadow-md:0 8px 22px rgba(0,0,0,0.4);
+    --shadow-sm:0 3px 8px rgba(0,0,0,0.3);
     --radius-lg:20px;
     --radius-md:14px;
     --ease:cubic-bezier(.2,.7,.2,1);
@@ -36,10 +40,10 @@
     max-width:520px;margin:0 auto;position:relative;overflow:hidden;
     border-radius:var(--radius-lg);
     background:
-      radial-gradient(120% 90% at 15% -10%, rgba(42,143,99,0.55), transparent 55%),
-      radial-gradient(120% 90% at 100% 0%, rgba(217,178,92,0.14), transparent 45%),
-      linear-gradient(165deg, var(--felt-dark), #071e15 65%, #051510);
-    border:1px solid rgba(217,178,92,0.28);
+      radial-gradient(120% 90% at 15% -10%, rgba(234,179,8,0.10), transparent 55%),
+      radial-gradient(120% 90% at 100% 0%, rgba(59,130,246,0.08), transparent 45%),
+      linear-gradient(165deg, var(--felt-dark), #090c10 65%, #05070a);
+    border:1px solid rgba(234,179,8,0.22);
     box-shadow:var(--shadow-lg), inset 0 0 90px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   .app::before{
@@ -90,8 +94,8 @@
   .table-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .table-card{
     position:relative;overflow:hidden;
-    background:linear-gradient(160deg, var(--felt-light), var(--felt) 70%);
-    border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-md);
+    background:linear-gradient(160deg, rgba(34,197,94,0.09), var(--felt) 65%);
+    border:1px solid rgba(34,197,94,0.28);border-radius:var(--radius-md);
     padding:17px 16px 16px;display:flex;flex-direction:column;gap:10px;
     box-shadow:var(--shadow-sm);
     transition:transform .18s var(--ease), box-shadow .18s var(--ease);
@@ -102,7 +106,11 @@
     background:linear-gradient(90deg, var(--brass), var(--red-ball));
     opacity:0.85;
   }
-  .table-card.busy{border-color:rgba(198,59,46,0.55);animation:pulseGlow 2.6s ease-in-out infinite;}
+  .table-card.busy{
+    border-color:rgba(239,68,68,0.5);
+    background:linear-gradient(160deg, rgba(239,68,68,0.12), var(--felt) 65%);
+    animation:pulseGlow 2.6s ease-in-out infinite;
+  }
   .table-card .tname{font-family:var(--font-display);font-size:25px;letter-spacing:1px;color:var(--chalk);}
   .status-pill{
     align-self:flex-start;font-family:var(--font-mono);font-size:10px;letter-spacing:1px;
@@ -110,9 +118,9 @@
     display:inline-flex;align-items:center;gap:5px;
   }
   .status-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
-  .status-pill.free{background:rgba(217,178,92,0.16);color:var(--brass-bright);}
-  .status-pill.busy{background:rgba(198,59,46,0.22);color:#F5A99B;}
-  .status-pill.paused{background:rgba(205,198,176,0.16);color:var(--chalk-dim);}
+  .status-pill.free{background:rgba(34,197,94,0.16);color:var(--green-bright);}
+  .status-pill.busy{background:rgba(239,68,68,0.2);color:#F87171;}
+  .status-pill.paused{background:rgba(234,179,8,0.18);color:var(--brass-bright);}
   .status-pill.paused::before{animation:pausedPulse 1.4s ease-in-out infinite;}
   .rate-line{font-family:var(--font-mono);font-size:12px;color:var(--chalk-dim);}
   .occ-line{font-family:var(--font-mono);font-size:12px;color:var(--chalk-dim);line-height:1.6;}
@@ -144,14 +152,19 @@
 
   .scoreboard{
     position:relative;overflow:hidden;
-    background:radial-gradient(120% 140% at 50% -10%, rgba(217,178,92,0.14), transparent 60%), var(--ink);
-    border:1px solid rgba(217,178,92,0.5);border-radius:18px;
-    padding:26px 18px;text-align:center;margin:18px 0;
+    width:250px;height:250px;margin:22px auto 18px;border-radius:50%;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    background:radial-gradient(120% 140% at 50% -10%, rgba(234,179,8,0.16), transparent 60%), var(--ink);
+    border:4px solid rgba(234,179,8,0.5);
     box-shadow:var(--shadow-md), inset 0 0 30px rgba(0,0,0,0.5);
   }
-  .scoreboard .timer{font-family:var(--font-mono);font-size:46px;font-weight:700;color:#FFDE9E;letter-spacing:2px;text-shadow:0 0 18px rgba(255,222,158,0.35);}
-  .scoreboard .cost{font-family:var(--font-display);font-size:42px;color:var(--brass-bright);margin-top:6px;letter-spacing:1px;}
-  .scoreboard .costsub{font-family:var(--font-mono);font-size:11px;color:var(--chalk-dim);margin-top:3px;}
+  .scoreboard::before{
+    content:"RUNNING";position:absolute;top:56px;font-family:var(--font-mono);
+    font-size:10px;letter-spacing:3px;color:var(--chalk-dim);
+  }
+  .scoreboard .timer{font-family:var(--font-mono);font-size:32px;font-weight:700;color:#FFDE9E;letter-spacing:1.5px;text-shadow:0 0 18px rgba(255,222,158,0.35);}
+  .scoreboard .cost{font-family:var(--font-display);font-size:34px;color:var(--brass-bright);margin-top:4px;letter-spacing:1px;}
+  .scoreboard .costsub{font-family:var(--font-mono);font-size:10px;color:var(--chalk-dim);margin-top:3px;max-width:170px;line-height:1.4;}
   .paused-line{
     margin-top:12px;font-family:var(--font-mono);font-size:12px;color:#E8DFC6;
     background:rgba(217,178,92,0.12);border:1px solid rgba(217,178,92,0.35);
@@ -162,7 +175,8 @@
   .player-line{font-family:var(--font-mono);font-size:13px;color:var(--chalk-dim);margin-bottom:2px;}
   .player-line b{color:var(--chalk);font-weight:600;}
 
-  .receipt{background:linear-gradient(180deg, #FBF8EF, var(--chalk));color:var(--ink);border-radius:16px;padding:22px;position:relative;box-shadow:var(--shadow-md);}
+  .receipt{background:linear-gradient(175deg, #F0D992, #D9B25C 75%);color:var(--ink);border-radius:16px;padding:22px;position:relative;box-shadow:var(--shadow-md);}
+  .receipt-brand{text-align:center;margin-bottom:12px;font-family:var(--font-display);font-size:19px;letter-spacing:1.5px;color:#3D2F10;}
   .receipt h3{font-family:var(--font-display);font-size:25px;letter-spacing:1px;margin:0 0 2px;}
   .receipt .rline{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:13px;padding:7px 0;border-bottom:1px dashed #B9B39F;}
   .receipt .rline.total{font-weight:700;font-size:17px;border-bottom:none;padding-top:11px;color:#0E3324;}
@@ -172,10 +186,18 @@
     transform:rotate(8deg);opacity:0.85;
   }
 
-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
-  .stat-card{background:linear-gradient(160deg, var(--felt-light), var(--felt));border-radius:var(--radius-md);padding:15px;box-shadow:var(--shadow-sm);}
-  .stat-card .lbl{font-size:11px;color:var(--chalk-dim);text-transform:uppercase;letter-spacing:0.5px;}
-  .stat-card .val{font-family:var(--font-display);font-size:27px;color:var(--brass-bright);margin-top:3px;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:20px;}
+  .stat-card{background:linear-gradient(160deg, var(--felt-light), var(--felt));border-radius:var(--radius-md);padding:11px 8px;box-shadow:var(--shadow-sm);}
+  .stat-card .lbl{font-size:9.5px;color:var(--chalk-dim);text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;}
+  .stat-card .val{font-family:var(--font-display);font-size:21px;color:var(--brass-bright);margin-top:3px;}
+  .stat-card.c-green{background:linear-gradient(160deg, rgba(34,197,94,0.2), rgba(34,197,94,0.05));border:1px solid rgba(34,197,94,0.35);}
+  .stat-card.c-green .val{color:var(--green-bright);}
+  .stat-card.c-blue{background:linear-gradient(160deg, rgba(59,130,246,0.2), rgba(59,130,246,0.05));border:1px solid rgba(59,130,246,0.35);}
+  .stat-card.c-blue .val{color:var(--blue-bright);}
+  .stat-card.c-red{background:linear-gradient(160deg, rgba(239,68,68,0.2), rgba(239,68,68,0.05));border:1px solid rgba(239,68,68,0.35);}
+  .stat-card.c-red .val{color:#F87171;}
+  .stat-card.c-yellow{background:linear-gradient(160deg, rgba(234,179,8,0.2), rgba(234,179,8,0.05));border:1px solid rgba(234,179,8,0.35);}
+  .stat-card.c-yellow .val{color:var(--brass-bright);}
 
   .rate-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
   .rate-row .tname{width:64px;font-family:var(--font-mono);font-size:13px;}
@@ -221,6 +243,36 @@
   .hint-note{font-size:11px;color:var(--chalk-dim);text-align:center;margin-top:14px;line-height:1.5;}
   .btn-sm{padding:7px 11px;font-size:12px;white-space:nowrap;}
   .role-badge{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(217,178,92,0.16);color:var(--brass-bright);margin-left:6px;text-transform:uppercase;}
+
+  .bottom-nav{
+    display:flex;justify-content:space-around;align-items:center;
+    padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(13,17,23,0.92), #05070a);
+    border-top:1px solid rgba(255,255,255,0.08);
+    position:relative;z-index:2;
+  }
+  .nav-item{
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;cursor:pointer;color:var(--chalk-dim);
+    font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.3px;
+    padding:5px 6px;border-radius:8px;transition:color .15s var(--ease);
+  }
+  .nav-item svg{width:19px;height:19px;}
+  .nav-item.active{color:var(--brass-bright);}
+
+  .upi-icon{
+    width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#fff;margin-right:8px;flex-shrink:0;
+  }
+  .upi-icon.gpay{background:#4285F4;}
+  .upi-icon.phonepe{background:#5F259F;}
+  .upi-icon.paytm{background:#00BAF2;}
+  .upi-icon.other{background:#FF8C00;}
+
+  .donut-legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--chalk-dim);}
+  .donut-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
+
+  .chart-bar{flex:1;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--brass-bright),var(--brass));min-height:3px;}
 </style>
 </head>
 <body>
@@ -281,6 +333,7 @@
   <div class="screen hidden" id="view-receipt">
     <div class="receipt">
       <div class="stamp">SETTLED</div>
+      <div class="receipt-brand">🦏 RHINO SNOOKER CLUB</div>
       <h3 id="rcTable">Table 1</h3>
       <p class="section-sub" style="color:#5B5646;" id="rcPlayer"></p>
       <div class="rline"><span>Start time</span><span id="rcStart"></span></div>
@@ -294,10 +347,10 @@
     <div class="hidden" id="upiIosOptions" style="margin-top:14px;">
       <p class="hint-note" style="margin:0 0 10px;">iPhone can't show an app picker for UPI links — tap your app directly:</p>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btn-outline btn-block" id="payGpayBtn">Pay with Google Pay</button>
-        <button class="btn btn-outline btn-block" id="payPhonepeBtn">Pay with PhonePe</button>
-        <button class="btn btn-outline btn-block" id="payPaytmBtn">Pay with Paytm</button>
-        <button class="btn btn-outline btn-block" id="payOtherUpiBtn">Other UPI app (BHIM etc.)</button>
+        <button class="btn btn-outline btn-block" id="payGpayBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon gpay">G</span>Pay with Google Pay</button>
+        <button class="btn btn-outline btn-block" id="payPhonepeBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon phonepe">P</span>Pay with PhonePe</button>
+        <button class="btn btn-outline btn-block" id="payPaytmBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon paytm">Pt</span>Pay with Paytm</button>
+        <button class="btn btn-outline btn-block" id="payOtherUpiBtn" style="display:flex;align-items:center;justify-content:flex-start;"><span class="upi-icon other">B</span>Other UPI app (BHIM etc.)</button>
       </div>
     </div>
     <button class="btn btn-brass btn-block" id="receiptDoneBtn" style="margin-top:12px;">New game</button>
@@ -328,8 +381,20 @@
     <p class="section-sub" id="loggedInAsLine" style="margin-top:-14px;"></p>
 
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Today's revenue</div><div class="val" id="statToday">₹0</div></div>
-      <div class="stat-card"><div class="lbl">Games today</div><div class="val" id="statCount">0</div></div>
+      <div class="stat-card c-green"><div class="lbl">Today's revenue</div><div class="val" id="statToday">₹0</div></div>
+      <div class="stat-card c-blue"><div class="lbl">Games today</div><div class="val" id="statCount">0</div></div>
+      <div class="stat-card c-red"><div class="lbl">Running tables</div><div class="val" id="statRunning">0</div></div>
+      <div class="stat-card c-yellow"><div class="lbl">Occupancy</div><div class="val" id="statOccupancy">0%</div></div>
+    </div>
+
+    <h4 class="subhead">Revenue today</h4>
+    <div id="revenueChart" style="display:flex;align-items:flex-end;gap:2px;height:70px;margin-bottom:4px;"></div>
+    <p class="hint-note" style="margin-top:0;text-align:left;">Hourly revenue for today, 12 AM – 11 PM.</p>
+
+    <h4 class="subhead">Table status</h4>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">
+      <div id="statusDonut" style="width:76px;height:76px;border-radius:50%;flex-shrink:0;"></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;" id="statusLegend"></div>
     </div>
 
     <h4 class="subhead">Payments</h4>
@@ -423,6 +488,29 @@
   </div>
 
   <div id="toastHost"></div>
+
+  <div class="bottom-nav">
+    <button class="nav-item" id="navHomeBtn" data-nav="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" id="navTablesBtn" data-nav="tables">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Tables</span>
+    </button>
+    <button class="nav-item" id="navHistoryBtn" data-nav="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+      <span>History</span>
+    </button>
+    <button class="nav-item" id="navReportsBtn" data-nav="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+      <span>Reports</span>
+    </button>
+    <button class="nav-item" id="navOwnerBtn" data-nav="owner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Owner</span>
+    </button>
+  </div>
 </div>
 
 <!-- Firebase -->
@@ -525,6 +613,31 @@
       ["view-home","view-entry","view-active","view-receipt","view-login","view-owner","view-board"].forEach(function(v){
         $(v).classList.toggle("hidden", v !== id);
       });
+    }
+
+    var pendingOwnerScroll = null;
+    function setActiveNav(key){
+      ["navHomeBtn","navTablesBtn","navHistoryBtn","navReportsBtn","navOwnerBtn"].forEach(function(id){
+        var el = $(id);
+        if(el) el.classList.toggle("active", el.getAttribute("data-nav") === key);
+      });
+    }
+    function goToOwnerArea(navKey, scrollSelector){
+      setActiveNav(navKey);
+      if(isOwnerAuthed){
+        renderOwner();
+        show("view-owner");
+        startOwnerPoll();
+        if(scrollSelector){
+          setTimeout(function(){
+            var el = document.querySelector(scrollSelector);
+            if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 60);
+        }
+      } else {
+        pendingOwnerScroll = scrollSelector || null;
+        openLogin();
+      }
     }
 
     function toast(msg){
@@ -745,6 +858,7 @@
     }
 
     function renderHome(){
+      setActiveNav("home");
       var grid = $("homeTableGrid");
       grid.innerHTML = "";
       TABLES.forEach(function(t){
@@ -778,6 +892,7 @@
     }
 
     function openBoard(){
+      setActiveNav("tables");
       show("view-board");
       renderBoard();
       if(boardTickHandle) clearInterval(boardTickHandle);
@@ -1104,10 +1219,45 @@
     }
 
     function renderOwner(){
+      setActiveNav("owner");
       var todays = state.history.filter(function(h){ return isToday(h.endTime); });
       var revenue = todays.reduce(function(s,h){ return s + h.amount; }, 0);
       $("statToday").textContent = fmtMoney(revenue);
       $("statCount").textContent = todays.length;
+
+      var runningCount = TABLES.filter(function(t){ return !!state.sessions[t]; }).length;
+      var freeCount = TABLES.length - runningCount;
+      var occupancyPct = TABLES.length ? Math.round((runningCount / TABLES.length) * 100) : 0;
+      var runEl = $("statRunning"); if(runEl) runEl.textContent = runningCount;
+      var occEl = $("statOccupancy"); if(occEl) occEl.textContent = occupancyPct + "%";
+
+      var chartHost = $("revenueChart");
+      if(chartHost){
+        chartHost.innerHTML = "";
+        var buckets = new Array(24).fill(0);
+        todays.forEach(function(h){ buckets[new Date(h.endTime).getHours()] += h.amount; });
+        var maxBucket = Math.max.apply(null, buckets.concat([1]));
+        buckets.forEach(function(v){
+          var bar = document.createElement("div");
+          bar.className = "chart-bar";
+          var pct = v > 0 ? Math.max(6, Math.round((v / maxBucket) * 100)) : 2;
+          bar.style.height = pct + "%";
+          bar.title = fmtMoney(v);
+          chartHost.appendChild(bar);
+        });
+      }
+
+      var donut = $("statusDonut");
+      if(donut){
+        var runPct = TABLES.length ? (runningCount / TABLES.length * 100) : 0;
+        donut.style.background = "conic-gradient(var(--red-ball) 0% " + runPct + "%, #2A3441 " + runPct + "% 100%)";
+      }
+      var legend = $("statusLegend");
+      if(legend){
+        legend.innerHTML =
+          '<div class="donut-legend-item"><span class="donut-dot" style="background:var(--red-ball);"></span>Running ' + runningCount + ' (' + Math.round(occupancyPct) + '%)</div>' +
+          '<div class="donut-legend-item"><span class="donut-dot" style="background:#2A3441;"></span>Available ' + freeCount + ' (' + (100 - Math.round(occupancyPct)) + '%)</div>';
+      }
 
       var isAdmin = !!(currentUser && currentUser.role === "admin");
       var loggedLine = $("loggedInAsLine");
@@ -1400,6 +1550,14 @@
         show("view-owner");
         startOwnerPoll();
         toast("Login successful!");
+        if(pendingOwnerScroll){
+          var target = pendingOwnerScroll;
+          pendingOwnerScroll = null;
+          setTimeout(function(){
+            var el = document.querySelector(target);
+            if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 60);
+        }
       } else {
         $("loginErr").textContent = "Wrong username or password.";
         $("loginErr").classList.remove("hidden");
@@ -1408,9 +1566,30 @@
 
     // Nav wiring
     $("ownerToggleBtn").addEventListener("click", function(){
-      if(isOwnerAuthed){ renderOwner(); show("view-owner"); startOwnerPoll(); }
-      else { openLogin(); }
+      if(isOwnerAuthed){ setActiveNav("owner"); renderOwner(); show("view-owner"); startOwnerPoll(); }
+      else { setActiveNav("owner"); openLogin(); }
     });
+
+    $("navHomeBtn").addEventListener("click", function(){
+      if(tickHandle){ clearInterval(tickHandle); tickHandle = null; }
+      stopOwnerPoll();
+      show("view-home");
+      renderHome();
+    });
+    $("navTablesBtn").addEventListener("click", function(){
+      stopOwnerPoll();
+      openBoard();
+    });
+    $("navHistoryBtn").addEventListener("click", function(){
+      goToOwnerArea("history", "#historyList");
+    });
+    $("navReportsBtn").addEventListener("click", function(){
+      goToOwnerArea("reports", ".stat-grid");
+    });
+    $("navOwnerBtn").addEventListener("click", function(){
+      goToOwnerArea("owner", null);
+    });
+
     $("loginSubmitBtn").addEventListener("click", attemptLogin);
     $("loginPassword").addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
     $("loginUsername").addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
@@ -1478,6 +1657,7 @@
     });
 
     $("loginBackBtn").addEventListener("click", function(){
+      pendingOwnerScroll = null;
       show("view-home");
       renderHome();
     });

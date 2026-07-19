@@ -2047,6 +2047,24 @@
         }
         refreshVisibleScreens();
       }, function(err){ console.error("Live config sync failed", err); });
+
+      db.collection("club").doc("history").onSnapshot(function(snap){
+        state.history = (snap.exists && snap.data().value) || [];
+        refreshVisibleScreens();
+      }, function(err){ console.error("Live history sync failed", err); });
+
+      db.collection("club").doc("accounts").onSnapshot(function(snap){
+        var acctData = snap.exists ? snap.data() : null;
+        if(acctData && acctData.value && Object.keys(acctData.value).length){
+          state.accounts = acctData.value;
+        }
+        refreshVisibleScreens();
+      }, function(err){ console.error("Live accounts sync failed", err); });
+
+      db.collection("club").doc("changes").onSnapshot(function(snap){
+        state.changes = (snap.exists && snap.data().value) || [];
+        refreshVisibleScreens();
+      }, function(err){ console.error("Live changes sync failed", err); });
     }
 
     async function init(){

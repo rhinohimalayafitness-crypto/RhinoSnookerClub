@@ -181,6 +181,11 @@
     font-family:var(--font-mono);font-size:10px;color:var(--brass-bright);
     background:rgba(234,179,8,0.12);padding:1px 6px;border-radius:6px;margin-left:6px;
   }
+  .table-number-tag{
+    font-family:var(--font-mono);font-size:10px;color:var(--chalk-dim);
+    background:rgba(255,255,255,0.07);padding:2px 7px;border-radius:6px;margin-left:8px;
+    vertical-align:middle;
+  }
   .date-range-row input[type=date]{flex:1;min-width:0;}
   .date-range-row .btn{flex-shrink:0;white-space:nowrap;}
 
@@ -418,7 +423,7 @@
     <div class="brand"><span class="dot"></span><h1>Rhino Snooker Club</h1></div>
     <button class="navbtn" id="ownerToggleBtn">Settings ▸</button>
   </div>
-  <div class="creator-note">Made by Sumit Dhyani</div>
+  <div class="creator-note">Made by Sumit Dhyani With ❤️ </div>
 
   <!-- HOME -->
   <div class="screen" id="view-home">
@@ -1165,7 +1170,7 @@
         var pillClass = sess ? (sess.paused ? "paused" : "busy") : "free";
         var pillText = sess ? (sess.paused ? "Paused" : "In play") : "Free";
         card.innerHTML = 
-          '<div class="tname">' + displayName + '</div>' +
+          '<div class="tname">' + displayName + '<span class="table-number-tag">Table ' + t + '</span></div>' +
           '<span class="status-pill ' + pillClass + '">' + pillText + '</span>' +
           '<div class="rate-line">' + fmtMoney(rate) + ' / min</div>' +
           (sess ? '<div class="occ-line">' + sess.name + '<br>' + fmtClock(mins*60) + ' · ' + fmtMoney(cost) + '</div>' : '') +
@@ -1238,7 +1243,7 @@
     function openEntry(t){
       currentTable = t;
       var displayName = state.tableNames[t] || ("Table " + t);
-      $("entryTitle").textContent = displayName;
+      $("entryTitle").textContent = displayName + " · Table " + t;
       $("entryRateSub").textContent = fmtMoney(state.rates[t]) + " per minute · billed to the minute";
       $("entryName").value = "";
       $("entryPhone").value = "";
@@ -1285,7 +1290,7 @@
       var sess = state.sessions[t];
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
-      $("activeTitle").textContent = displayName;
+      $("activeTitle").textContent = displayName + " · Table " + t;
       var canSeePhone = ownsCurrentSession(t);
       $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b>" + (canSeePhone ? (" · " + sess.phone) : "") + " · started " + fmtTime(sess.startTime);
       show("view-active");
@@ -1482,7 +1487,7 @@
     function showReceipt(r){
       currentReceipt = r;
       var displayName = state.tableNames[r.table] || ("Table " + r.table);
-      $("rcTable").textContent = displayName;
+      $("rcTable").textContent = displayName + " · Table " + r.table;
       $("rcPlayer").textContent = r.name + " · " + r.phone;
       $("rcGameNumber").textContent = r.gameNumber ? ("Game #" + r.gameNumber) : "";
       $("rcStart").textContent = fmtTime(r.startTime);
@@ -1913,7 +1918,7 @@
             '<div class="amt">' + fmtMoney(h.amount) + '</div>' +
             '<div class="list-row-actions">' +
               '<button class="icon-btn" data-edit-id="' + h.id + '" title="Edit">✎</button>' +
-              '<button class="icon-btn danger" data-delete-id="' + h.id + '" title="Delete">🗑</button>' +
+              (currentUser && currentUser.role === "admin" ? '<button class="icon-btn danger" data-delete-id="' + h.id + '" title="Delete">🗑</button>' : '') +
             '</div>' +
           '</div>';
         host.appendChild(row);
@@ -1998,8 +2003,8 @@
     async function deleteGameEntry(gameId){
       var record = state.history.find(function(h){ return h.id === gameId; });
       if(!record){ toast("That game record couldn't be found."); return; }
-      if(!currentUser || (currentUser.role !== "admin" && currentUser.role !== "supervisor")){
-        toast("Only admins/supervisors can delete games.");
+      if(!currentUser || currentUser.role !== "admin"){
+        toast("Only the admin can delete games. Supervisors can edit them instead.");
         return;
       }
       var label = (record.gameNumber || record.id) + " · " + record.name + " · " + fmtMoney(record.amount);

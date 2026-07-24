@@ -423,7 +423,7 @@
     <div class="brand"><span class="dot"></span><h1>Rhino Snooker Club</h1></div>
     <button class="navbtn" id="ownerToggleBtn">Settings ▸</button>
   </div>
-  <div class="creator-note">Made by Sumit Dhyani With ❤️ </div>
+  <div class="creator-note">Made by Sumit Dhyani</div>
 
   <!-- HOME -->
   <div class="screen" id="view-home">
@@ -1170,7 +1170,7 @@
         var pillClass = sess ? (sess.paused ? "paused" : "busy") : "free";
         var pillText = sess ? (sess.paused ? "Paused" : "In play") : "Free";
         card.innerHTML = 
-          '<div class="tname">' + displayName + '<span class="table-number-tag">Table ' + t + '</span></div>' +
+          '<div class="tname">' + displayName + '</div>' +
           '<span class="status-pill ' + pillClass + '">' + pillText + '</span>' +
           '<div class="rate-line">' + fmtMoney(rate) + ' / min</div>' +
           (sess ? '<div class="occ-line">' + sess.name + '<br>' + fmtClock(mins*60) + ' · ' + fmtMoney(cost) + '</div>' : '') +
@@ -1243,7 +1243,7 @@
     function openEntry(t){
       currentTable = t;
       var displayName = state.tableNames[t] || ("Table " + t);
-      $("entryTitle").textContent = displayName + " · Table " + t;
+      $("entryTitle").textContent = displayName;
       $("entryRateSub").textContent = fmtMoney(state.rates[t]) + " per minute · billed to the minute";
       $("entryName").value = "";
       $("entryPhone").value = "";
@@ -1265,6 +1265,7 @@
         return;
       }
       try {
+        var gameNumber = await generateGameNumber(currentTable);
         await db.runTransaction(async (transaction) => {
           var sessionsDoc = await transaction.get(db.collection("club").doc("sessions"));
           var currentSessions = (sessionsDoc.exists && sessionsDoc.data().value) || {};
@@ -1272,7 +1273,7 @@
             throw new Error("Table is already occupied.");
           }
           var sessionId = genSessionId();
-          currentSessions[currentTable] = { name: name, phone: phone, startTime: Date.now(), sessionId: sessionId };
+          currentSessions[currentTable] = { name: name, phone: phone, startTime: Date.now(), sessionId: sessionId, gameNumber: gameNumber };
           transaction.set(db.collection("club").doc("sessions"), { value: currentSessions });
           state.sessions = currentSessions;
           try { localStorage.setItem("snooker_sid_" + currentTable, sessionId); } catch(e){}
@@ -1290,9 +1291,9 @@
       var sess = state.sessions[t];
       if(!sess){ show("view-home"); renderHome(); return; }
       var displayName = state.tableNames[t] || ("Table " + t);
-      $("activeTitle").textContent = displayName + " · Table " + t;
+      $("activeTitle").textContent = displayName;
       var canSeePhone = ownsCurrentSession(t);
-      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b>" + (canSeePhone ? (" · " + sess.phone) : "") + " · started " + fmtTime(sess.startTime);
+      $("activePlayerLine").innerHTML = "<b>" + sess.name + "</b>" + (canSeePhone ? (" · " + sess.phone) : "") + " · started " + fmtTime(sess.startTime) + (sess.gameNumber ? (' <span class="game-number-tag">' + sess.gameNumber + '</span>') : "");
       show("view-active");
       tickActive();
       if(tickHandle) clearInterval(tickHandle);
@@ -1405,7 +1406,7 @@
       var amount = mins * rate;
       var record = {
         id: String(endTime) + "-" + t,
-        gameNumber: await generateGameNumber(t),
+        gameNumber: sess.gameNumber || await generateGameNumber(t),
         table: t, name: sess.name, phone: sess.phone,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
@@ -1440,7 +1441,7 @@
       var amount = mins * rate;
       var record = {
         id: String(endTime) + "-" + t,
-        gameNumber: await generateGameNumber(t),
+        gameNumber: sess.gameNumber || await generateGameNumber(t),
         table: t, name: sess.name, phone: sess.phone,
         startTime: sess.startTime, endTime: endTime,
         minutes: mins, rate: rate, amount: amount,
@@ -1487,7 +1488,7 @@
     function showReceipt(r){
       currentReceipt = r;
       var displayName = state.tableNames[r.table] || ("Table " + r.table);
-      $("rcTable").textContent = displayName + " · Table " + r.table;
+      $("rcTable").textContent = displayName;
       $("rcPlayer").textContent = r.name + " · " + r.phone;
       $("rcGameNumber").textContent = r.gameNumber ? ("Game #" + r.gameNumber) : "";
       $("rcStart").textContent = fmtTime(r.startTime);
